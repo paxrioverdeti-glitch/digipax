@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema de Inicialização (Splash Nativa Otimizada para Vetor) -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+        <!-- Use o nome do arquivo que você converter (ex: ic_logo_vector) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_logo_vector</item>
+        <item name="postSplashScreenTheme">@style/Theme.Pxrioverde</item>
+    </style>
+
+    <style name="Theme.Pxrioverde" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:windowTranslucentNavigation">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

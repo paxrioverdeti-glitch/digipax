@@ -1,0 +1,13 @@
+-- Enable postgres_changes for the ticket list subscription used by the app.
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = 'tickets'
+    ) then
+        alter publication supabase_realtime add table public.tickets;
+    end if;
+end $$;

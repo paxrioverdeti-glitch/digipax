@@ -1,0 +1,139 @@
+package com.example.pxrioverde.ui.ticket
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.pxrioverde.ui.components.LottieAnimation
+import com.example.pxrioverde.ui.components.CorporateIcons
+import androidx.compose.foundation.BorderStroke
+import kotlinx.coroutines.delay
+
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
+@Composable
+fun TicketSuccessScreen(
+    onDismiss: () -> Unit,
+    isUrgent: Boolean = false,
+    isGobah: Boolean = false,
+    onWhatsAppRedirect: () -> Unit = {}
+) {
+    // Auto-dismiss após um tempo se o usuário não clicar (Aumentado para Gobah para dar tempo de ler)
+    LaunchedEffect(Unit) {
+        delay(if (isGobah) 5000 else 4000)
+        if (isGobah) onWhatsAppRedirect()
+        onDismiss()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Animação de Sucesso - Centralizada e de destaque
+        Box(
+            modifier = Modifier.heightIn(min = 200.dp, max = 320.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            LottieAnimation(
+                resName = "carregamento",
+                modifier = Modifier.size(320.dp)
+            )
+        }
+
+        if (isUrgent || isGobah) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+                color = if (isGobah) Color(0xFFE3F2FD) else Color(0xFFE8F5E9),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, if (isGobah) Color(0xFF90CAF9) else Color(0xFF81C784))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isGobah) CorporateIcons.Send else CorporateIcons.Alert,
+                        contentDescription = null,
+                        tint = if (isGobah) Color(0xFF1976D2) else Color(0xFF2E7D32),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = if (isGobah) 
+                            "Atenção: Você será redirecionado para o WhatsApp da Gobah para agilizar seu atendimento." 
+                            else "Chamado de URGÊNCIA enviado. Um técnico será notificado imediatamente.",
+                        color = if (isGobah) Color(0xFF0D47A1) else Color(0xFF1B5E20),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 48.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Texto de Sucesso
+            Text(
+                text = if (isGobah) "Chamado Gobah!" else "Chamado Aberto!",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF1B4332), // Verde escuro corporativo
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = if (isGobah) 
+                    "Seu chamado foi registrado no sistema e agora vamos te levar para o suporte direto via WhatsApp."
+                    else "Sua solicitação foi enviada com sucesso.\nEm breve um técnico irá atendê-lo.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.Gray,
+                textAlign = TextAlign.Center,
+                lineHeight = 24.sp
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Botão Concluir
+            Button(
+                onClick = {
+                    if (isGobah) onWhatsAppRedirect()
+                    onDismiss()
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .height(60.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF1B4332)
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+            ) {
+                Text(
+                    text = if (isGobah) "IR PARA WHATSAPP" else "CONCLUIR",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
