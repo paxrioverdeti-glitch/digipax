@@ -5,11 +5,11 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class AbsenceType(val label: String) {
-    ATRASO("Atraso"),
-    SAIDA_ANTECIPADA("Saída Antecipada"),
-    RETIRADA("Retirada"),
-    FALTA("Falta"),
-    TROCA_HORARIO("Troca de Horário")
+    @SerialName("Atraso") ATRASO("Atraso"),
+    @SerialName("Saída Antecipada") SAIDA_ANTECIPADA("Saída Antecipada"),
+    @SerialName("Retirada") RETIRADA("Retirada"),
+    @SerialName("Falta") FALTA("Falta"),
+    @SerialName("Troca de Horário") TROCA_HORARIO("Troca de Horário")
 }
 
 @Serializable

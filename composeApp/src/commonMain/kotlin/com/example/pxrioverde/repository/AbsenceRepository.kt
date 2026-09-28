@@ -2,6 +2,7 @@ package com.example.pxrioverde.repository
 
 import com.example.pxrioverde.model.ComunicadoState
 import com.example.pxrioverde.model.AdminFeedback
+import com.example.pxrioverde.model.AbsenceType
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
@@ -9,6 +10,7 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.realtime.*
 import kotlinx.coroutines.*
 import kotlinx.datetime.Clock
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.ExperimentalTime
 
@@ -19,7 +21,7 @@ private data class AbsenceInsert(
     @kotlinx.serialization.SerialName("sector") val sector: String,
     @kotlinx.serialization.SerialName("target_approver_id") val targetApproverId: String?,
     @kotlinx.serialization.SerialName("target_approver_name") val targetApproverName: String?,
-    @kotlinx.serialization.SerialName("type") val type: String,
+    @SerialName("type") val type: AbsenceType,
     @kotlinx.serialization.SerialName("date") val date: String,
     @kotlinx.serialization.SerialName("expected_time") val expectedTime: String?,
     @kotlinx.serialization.SerialName("effective_time") val effectiveTime: String?,
@@ -30,7 +32,8 @@ private data class AbsenceInsert(
     @kotlinx.serialization.SerialName("original_time") val originalTime: String?,
     @kotlinx.serialization.SerialName("new_time") val newTime: String?,
     @kotlinx.serialization.SerialName("reason") val reason: String?,
-    @kotlinx.serialization.SerialName("created_at") val createdAt: Long
+    @SerialName("createdAt") val createdAtCamel: Long,
+    @SerialName("created_at") val createdAtSnake: Long
 )
 
 class AbsenceRepository(
@@ -48,7 +51,7 @@ class AbsenceRepository(
             sector = absence.sector,
             targetApproverId = absence.targetApproverId,
             targetApproverName = absence.targetApproverName,
-            type = absence.type.name,
+            type = absence.type,
             date = absence.date,
             expectedTime = absence.expectedTime,
             effectiveTime = absence.effectiveTime,
@@ -59,7 +62,8 @@ class AbsenceRepository(
             originalTime = absence.originalTime,
             newTime = absence.newTime,
             reason = absence.reason,
-            createdAt = now
+            createdAtCamel = now,
+            createdAtSnake = now
         )
 
         supabase.from("absences").insert(payload)

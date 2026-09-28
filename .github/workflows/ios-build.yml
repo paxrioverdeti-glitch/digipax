@@ -1,18 +1,17 @@
-name: iOS Build (CI/CD)
+name: iOS Build & TestFlight Deploy (CI/CD)
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Build iOS App
+  deploy:
+    name: Build & Deploy iOS App to TestFlight
     runs-on: macos-latest
-    
+
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -25,20 +24,71 @@ jobs:
       - name: Grant Execute Permission to Gradlew
         run: chmod +x gradlew
 
-      - name: Build Kotlin Shared Framework
-        run: ./gradlew :composeApp:assembleDebug
+      - name: Import Signing Certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_P12_BASE64 }}
+          p12-password: ${{ secrets.APPLE_P12_PASSWORD }}
 
-      - name: Build iOS App (Simulator)
+      - name: Install Provisioning Profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
+
+      - name: Save App Store Connect API Key
+        run: |
+          mkdir -p ~/.private_keys
+          echo "${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}" > ~/.private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+
+      - name: Build Kotlin Multiplatform Framework
+        run: ./gradlew :composeApp:assembleRelease
+
+      - name: Create ExportOptions.plist
+        run: |
+          cat <<EOF > ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>uploadSymbols</key>
+              <true/>
+              <key>uploadBitcode</key>
+              <false/>
+              <key>destination</key>
+              <string>export</string>
+          </dict>
+          EOF
+
+      - name: Archive iOS App
         run: |
           xcodebuild -project iosApp/iosApp.xcodeproj \
                      -scheme iosApp \
-                     -configuration Debug \
-                     -sdk iphonesimulator \
-                     -derivedDataPath build-ios \
-                     build CODE_SIGNING_ALLOWED=NO
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -archivePath build/iosApp.xcarchive \
+                     archive \
+                     CODE_SIGN_STYLE=Automatic
 
-      - name: Upload Build Artifact
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+                     -archivePath build/iosApp.xcarchive \
+                     -exportOptionsPlist ExportOptions.plist \
+                     -exportPath build/output
+
+      - name: Upload to TestFlight / App Store Connect
+        run: |
+          xcrun altool --upload-app \
+            -f build/output/*.ipa \
+            -t ios \
+            --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+
+      - name: Upload IPA Artifact to GitHub Actions
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ios-app-simulator
-          path: build-ios/Build/Products/Debug-iphonesimulator/iosApp.app
+          name: ios-app-release
+          path: build/output/*.ipa
