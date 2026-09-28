@@ -707,7 +707,7 @@ fun AdminFeedbackSection(feedback: AdminFeedback) {
                         "Descontar" -> Color(0xFFD32F2F)
                         "Abonar" -> Color(0xFF2E7D32)
                         "Compensar" -> Color(0xFF1976D2)
-                        "Compensar do Banco de Horas" -> Color(0xFFFFA000)
+                        "Banco de Horas", "Compensar do Banco de Horas" -> Color(0xFFFFA000)
                         else -> Color.Gray
                     }
                     AdminChip(label = instruction, color = chipColor)
@@ -776,7 +776,7 @@ fun AdminEvaluationDialog(
                 // Instruções ao DP
                 Column {
                     Text("Instruções ao DP", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    val options = listOf("Abonar", "Compensar", "Compensar do Banco de Horas", "Descontar")
+                    val options = listOf("Abonar", "Compensar", "Banco de Horas", "Descontar")
                     options.forEach { option ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
                             RadioButton(
