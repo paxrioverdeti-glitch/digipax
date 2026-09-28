@@ -100,14 +100,17 @@ class AbsenceRepository(
 
     suspend fun getAbsencesForApprover(approverId: String): List<ComunicadoState> {
         return try {
-            supabase.from("absences_api")
+            val list = supabase.from("absences_api")
                 .select {
-                    filter {
-                        eq("targetApproverId", approverId)
-                    }
                     order("createdAt", Order.DESCENDING)
                 }
                 .decodeList<ComunicadoState>()
+
+            list.filter { item ->
+                item.targetApproverId == approverId ||
+                item.targetApproverId == null ||
+                item.targetApproverId == "af5749ac-522d-44fa-8ec5-8f31e6cdc416" && approverId.isNotBlank() // Fallback Max
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

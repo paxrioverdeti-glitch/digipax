@@ -43,6 +43,10 @@ class AbsenceViewModel(
     private val _lastViewedAbsenceId = MutableStateFlow(LocalStorage.getString("last_viewed_absence_id", ""))
     val lastViewedAbsenceId = _lastViewedAbsenceId.asStateFlow()
 
+    init {
+        loadApprovers()
+    }
+
     fun selectAbsence(absence: ComunicadoState?) {
         _selectedAbsence.value = absence
     }
@@ -94,7 +98,21 @@ class AbsenceViewModel(
 
     fun loadApprovers() {
         viewModelScope.launch {
-            _approvers.value = authService.getApprovers()
+            try {
+                val dbApprovers = authService.getApprovers()
+                if (dbApprovers.isNotEmpty()) {
+                    _approvers.value = dbApprovers
+                    _fixedSupervisors.value = dbApprovers.map { user ->
+                        Supervisor(
+                            id = user.id,
+                            name = user.name ?: user.displayName,
+                            email = user.email
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                println("DEBUG: Erro ao carregar aprovadores do banco: ${e.message}")
+            }
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -140,10 +144,10 @@ fun ComunicadoAusenciaScreen(
                 ExtendedFloatingActionButton(
                     onClick = { showEvaluationDialog = true },
                     containerColor = corporateGreen,
-                    contentColor = Color.White,
-                    icon = { Icon(CorporateIcons.Check, null) },
-                    text = { Text("AVALIAR AGORA") }
-                )
+                    contentColor = Color.White
+                ) {
+                    Text("AVALIAR AGORA", fontWeight = FontWeight.Bold)
+                }
             }
         }
     ) { padding ->
@@ -159,6 +163,9 @@ fun ComunicadoAusenciaScreen(
             if (isReadOnly && state.adminFeedback != null) {
                 AdminFeedbackSection(state.adminFeedback)
             }
+
+            // --- GUIA DE REGRAS & PARECERES ---
+            ApprovalGuidelinesCard()
 
             // --- SEÇÃO 1: IDENTIFICAÇÃO ---
             SectionCard(title = "Identificação") {
@@ -700,6 +707,7 @@ fun AdminFeedbackSection(feedback: AdminFeedback) {
                         "Descontar" -> Color(0xFFD32F2F)
                         "Abonar" -> Color(0xFF2E7D32)
                         "Compensar" -> Color(0xFF1976D2)
+                        "Compensar do Banco de Horas" -> Color(0xFFFFA000)
                         else -> Color.Gray
                     }
                     AdminChip(label = instruction, color = chipColor)
@@ -733,11 +741,14 @@ fun AdminEvaluationDialog(
     var selectedInstruction by remember { mutableStateOf(currentFeedback.instructions.firstOrNull()) }
 
     AlertDialog(
-        modifier = Modifier.imePadding(),
+        modifier = Modifier.imePadding().fillMaxWidth(0.95f),
         onDismissRequest = onDismiss,
         title = { Text("Avaliação do Departamento Pessoal", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 // Autorização
                 Column {
                     Text("Autorização", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
@@ -762,20 +773,23 @@ fun AdminEvaluationDialog(
                     }
                 }
 
-                // Instruções
+                // Instruções ao DP
                 Column {
                     Text("Instruções ao DP", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    val options = listOf("Descontar", "Abonar", "Compensar")
+                    val options = listOf("Abonar", "Compensar", "Compensar do Banco de Horas", "Descontar")
                     options.forEach { option ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
                             RadioButton(
                                 selected = selectedInstruction == option,
                                 onClick = { selectedInstruction = option }
                             )
-                            Text(option, modifier = Modifier.clickable { selectedInstruction = option })
+                            Text(option, modifier = Modifier.clickable { selectedInstruction = option }, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
+
+                // Guia Rápido dentro do Modal
+                ApprovalGuidelinesCard(initiallyExpanded = false)
             }
         },
         confirmButton = {
@@ -792,4 +806,179 @@ fun AdminEvaluationDialog(
             TextButton(onClick = onDismiss) { Text("CANCELAR") }
         }
     )
+}
+
+@Composable
+fun ApprovalGuidelinesCard(
+    modifier: Modifier = Modifier,
+    initiallyExpanded: Boolean = false
+) {
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFF1B4332).copy(alpha = 0.15f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Surface(
+                        color = Color(0xFF1B4332).copy(alpha = 0.08f),
+                        shape = CircleShape,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color(0xFF1B4332),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Guia de Regras & Pareceres",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF1B4332)
+                        )
+                        Text(
+                            text = if (expanded) "Clique para recolher o manual" else "Entenda as diretrizes de Abono, Compensação e Desconto",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                }
+
+                Surface(
+                    color = Color(0xFF1B4332).copy(alpha = 0.05f),
+                    shape = CircleShape,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = Color(0xFF1B4332)
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    HorizontalDivider(color = Color(0xFFE0E0E0).copy(alpha = 0.6f))
+
+                    // 1. Abonar
+                    GuidelineItem(
+                        title = "Abonar (Abono de falta)",
+                        badge = "Pago sem desconto",
+                        badgeColor = Color(0xFF2E7D32),
+                        description = "Ocorre quando a ausência é justificada (por exemplo, por atestado médico ou por motivos previstos no Art. 473 da CLT, como doação de sangue ou casamento).\n\nA empresa aceita a justificativa: o dia é pago normalmente e o colaborador não precisa repor as horas nem sofrer desconto no salário ou no banco."
+                    )
+
+                    // 2. Compensar
+                    GuidelineItem(
+                        title = "Compensar",
+                        badge = "Troca direta de horas",
+                        badgeColor = Color(0xFF1976D2),
+                        description = "É a troca direta de horas dentro do período do contrato (geralmente no mesmo mês ou semana).\n\nO colaborador falta, sai mais cedo ou se atrasa em um dia e faz as horas correspondentes em outro momento combinado (por exemplo, trabalhar 48 minutos a mais de segunda a quinta para folgar no sábado)."
+                    )
+
+                    // 3. Compensar do Banco de Horas
+                    GuidelineItem(
+                        title = "Compensar do Banco de Horas",
+                        badge = "Sistema de Banco de Horas",
+                        badgeColor = Color(0xFFFFA000),
+                        description = "É o abate ou crédito de horas utilizando o saldo registrado no sistema formal de Banco de Horas da empresa:\n\n• Saldo Positivo: Se o colaborador tem horas acumuladas, ele pode usar esse saldo para folgar ou cobrir atrasos sem mexer no salário.\n\n• Saldo Negativo: Se o colaborador se ausenta, as horas não trabalhadas entram como devolução no banco para serem pagas com horas extras em data futura (dentro do prazo do acordo individual ou coletivo)."
+                    )
+
+                    // 4. Descontar
+                    GuidelineItem(
+                        title = "Descontar",
+                        badge = "Desconto em folha",
+                        badgeColor = Color(0xFFD32F2F),
+                        description = "É a subtração do valor referente ao tempo não trabalhado diretamente na folha de pagamento (salário).\n\nAcontece quando a falta ou atraso é injustificado, não há acordo de compensação direta e não há saldo disponível no banco de horas. Além do desconto do dia ou das horas, a falta injustificada também pode gerar a perda do DSR (Descanso Semanal Remunerado)."
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GuidelineItem(
+    title: String,
+    badge: String,
+    badgeColor: Color,
+    description: String
+) {
+    Surface(
+        color = badgeColor.copy(alpha = 0.04f),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.25f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color(0xFF1B4332)
+                )
+
+                Surface(
+                    color = badgeColor,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = badge.uppercase(),
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF333333),
+                lineHeight = 18.sp
+            )
+        }
+    }
 }
