@@ -40,6 +40,11 @@ jobs:
           mkdir -p ~/.private_keys
           echo "${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}" > ~/.private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
+      - name: Create local.properties
+        run: |
+          touch local.properties
+          touch composeApp/local.properties
+
       - name: Build Kotlin Multiplatform Framework
         run: ./gradlew :composeApp:assembleRelease
 
