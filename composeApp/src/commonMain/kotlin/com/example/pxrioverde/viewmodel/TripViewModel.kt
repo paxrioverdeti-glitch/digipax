@@ -76,7 +76,7 @@ class TripViewModel(
         _isBookingSubmitting.value = true
         _isSuccess.value = false
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.Default) {
             delay(300)
 
             try {
