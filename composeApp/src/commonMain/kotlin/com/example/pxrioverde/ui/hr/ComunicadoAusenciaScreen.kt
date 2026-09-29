@@ -721,7 +721,7 @@ fun AdminFeedbackSection(feedback: AdminFeedback) {
 fun AdminChip(label: String, color: Color) {
     ElevatedAssistChip(
         onClick = {},
-        label = { Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+        label = { Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
         colors = AssistChipDefaults.elevatedAssistChipColors(
             labelColor = color,
             leadingIconContentColor = color
@@ -787,9 +787,6 @@ fun AdminEvaluationDialog(
                         }
                     }
                 }
-
-                // Guia Rápido dentro do Modal
-                ApprovalGuidelinesCard(initiallyExpanded = false)
             }
         },
         confirmButton = {
@@ -896,10 +893,10 @@ fun ApprovalGuidelinesCard(
 
                     // 1. Abonar
                     GuidelineItem(
-                        title = "Abonar (Abono de falta)",
+                        title = "Abonar",
                         badge = "Pago sem desconto",
                         badgeColor = Color(0xFF2E7D32),
-                        description = "Ocorre quando a ausência é justificada (por exemplo, por atestado médico ou por motivos previstos no Art. 473 da CLT, como doação de sangue ou casamento).\n\nA empresa aceita a justificativa: o dia é pago normalmente e o colaborador não precisa repor as horas nem sofrer desconto no salário ou no banco."
+                        description = "A ausência não gera desconto e não precisa ser compensada. Pode acontecer quando o colaborador apresenta uma justificativa válida, como:\n\nAtestado médico, declaração, atestado de óbito e outras justificativas avaliadas pela empresa.\n\nO supervisor ou líder também poderá avaliar o motivo da falta, atraso ou saída antecipada e autorizar o abono, conforme cada situação."
                     )
 
                     // 2. Compensar
@@ -907,23 +904,23 @@ fun ApprovalGuidelinesCard(
                         title = "Compensar",
                         badge = "Troca direta de horas",
                         badgeColor = Color(0xFF1976D2),
-                        description = "É a troca direta de horas dentro do período do contrato (geralmente no mesmo mês ou semana).\n\nO colaborador falta, sai mais cedo ou se atrasa em um dia e faz as horas correspondentes em outro momento combinado (por exemplo, trabalhar 48 minutos a mais de segunda a quinta para folgar no sábado)."
+                        description = "As horas não trabalhadas deverão ser repostas pelo colaborador. A compensação pode ocorrer em casos de:\n\nFalta, atraso e saída antecipada.\n\nA reposição das horas deverá ser combinada com o supervisor ou líder, podendo ser realizada em até 2 horas extras por dia."
                     )
 
-                    // 3. Compensar do Banco de Horas
-                    GuidelineItem(
-                        title = "Compensar do Banco de Horas",
-                        badge = "Sistema de Banco de Horas",
-                        badgeColor = Color(0xFFFFA000),
-                        description = "É o abate ou crédito de horas utilizando o saldo registrado no sistema formal de Banco de Horas da empresa:\n\n• Saldo Positivo: Se o colaborador tem horas acumuladas, ele pode usar esse saldo para folgar ou cobrir atrasos sem mexer no salário.\n\n• Saldo Negativo: Se o colaborador se ausenta, as horas não trabalhadas entram como devolução no banco para serem pagas com horas extras em data futura (dentro do prazo do acordo individual ou coletivo)."
-                    )
-
-                    // 4. Descontar
+                    // 3. Descontar
                     GuidelineItem(
                         title = "Descontar",
                         badge = "Desconto em folha",
                         badgeColor = Color(0xFFD32F2F),
-                        description = "É a subtração do valor referente ao tempo não trabalhado diretamente na folha de pagamento (salário).\n\nAcontece quando a falta ou atraso é injustificado, não há acordo de compensação direta e não há saldo disponível no banco de horas. Além do desconto do dia ou das horas, a falta injustificada também pode gerar a perda do DSR (Descanso Semanal Remunerado)."
+                        description = "Quando o colaborador não apresenta uma justificativa válida e não houver autorização para abono, compensação ou banco de horas, as horas não trabalhadas poderão ser descontadas do salário. O desconto pode ocorrer por:\n\nFalta, atrasos, e saídas antecipadas.\n\nNessa situação, o colaborador também perde a assiduidade, conforme as regras da empresa."
+                    )
+
+                    // 4. Banco de Horas
+                    GuidelineItem(
+                        title = "Banco de Horas",
+                        badge = "Sistema de Banco de Horas",
+                        badgeColor = Color(0xFFFFA000),
+                        description = "Quando houver falta, atraso ou saída antecipada, o supervisor ou líder poderá autorizar que as horas não trabalhadas sejam abatidas do saldo do banco de horas do colaborador.\n\nNesse caso, não haverá desconto na remuneração, pois as horas serão descontadas do saldo disponível no banco de horas."
                     )
                 }
             }
