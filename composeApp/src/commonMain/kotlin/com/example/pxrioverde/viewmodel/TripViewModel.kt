@@ -3,6 +3,7 @@ package com.example.pxrioverde.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pxrioverde.repository.TripRepository
+import com.example.pxrioverde.repository.VehicleInspectionRepository
 import com.example.pxrioverde.model.Booking
 import com.example.pxrioverde.model.Trip
 import com.example.pxrioverde.model.Car
@@ -19,7 +20,8 @@ import kotlin.time.ExperimentalTime
 @OptIn(ExperimentalTime::class)
 class TripViewModel(
     private val repository: TripRepository,
-    private val syncTripsUseCase: com.example.pxrioverde.domain.usecase.SyncTripsUseCase
+    private val syncTripsUseCase: com.example.pxrioverde.domain.usecase.SyncTripsUseCase,
+    private val vehicleInspectionRepository: VehicleInspectionRepository
 ) : ViewModel() {
     
     private val _bookings = MutableStateFlow<List<Booking>>(emptyList())
@@ -143,9 +145,10 @@ class TripViewModel(
         }
     }
 
-    fun finishBooking(booking: Booking, finalKm: Double, onResult: (Boolean) -> Unit) {
+    fun finishBooking(booking: Booking, finalKm: Double, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             _isUploading.value = true
+            var inspectionError: String? = null
             try {
                 val photoUrls = mutableListOf<String>()
                 _capturedPhotos.value.forEachIndexed { index, bytes ->
@@ -175,13 +178,33 @@ class TripViewModel(
                     endTime = Clock.System.now().toEpochMilliseconds(),
                     photoUrls = photoUrls
                 )
+
+                if (photoUrls.size == 4) {
+                    try {
+                        val trip = repository.getTripByBookingId(booking.id)
+                            ?: error("Viagem finalizada sem registro para analisar as fotos.")
+                        vehicleInspectionRepository.analyzeAndSaveReport(
+                            tripId = trip.id ?: error("A viagem não possui identificador."),
+                            carId = trip.carId,
+                            userId = trip.userId,
+                            initialPhotoUrls = trip.photoUrls,
+                            finalPhotoUrls = photoUrls
+                        ).onFailure { error ->
+                            inspectionError = error.message
+                            println("Erro ao analisar avarias da viagem ${booking.id}: ${error.message}")
+                        }
+                    } catch (e: Exception) {
+                        inspectionError = e.message
+                        println("Erro ao preparar análise de avarias da viagem ${booking.id}: ${e.message}")
+                    }
+                }
                 
                 _capturedPhotos.value = listOf(null, null, null, null)
                 loadBookings(booking.userId)
-                onResult(true)
+                onResult(true, inspectionError)
             } catch (e: Exception) {
                 e.printStackTrace()
-                onResult(false)
+                onResult(false, e.message)
             } finally {
                 _isUploading.value = false
             }
@@ -266,7 +289,7 @@ class TripViewModel(
                     startKm = km,
                     startTime = Clock.System.now().toEpochMilliseconds(),
                     photoUrls = photoUrls,
-                                    destination = booking.destination,
+                                    destination = booking.resolvedDestination,
                                     status = "ativo"
                                 )
 

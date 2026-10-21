@@ -1,20 +1,26 @@
 package com.example.pxrioverde.ui.user
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.platform.LocalFocusManager
 import com.example.pxrioverde.ui.components.LottieAnimation
@@ -42,6 +48,7 @@ fun CarBookingScreen(
     // PRÉ-CARREGAMENTO DA ANIMAÇÃO:
     val loadingComposition = rememberLottieComposition("carregamento")
 
+    var selectedTab by remember { mutableStateOf(0) } // 0 = Agendar, 1 = Veículos Agendados
     var isEmergency by remember { mutableStateOf(false) }
     var selectedCar by remember { mutableStateOf<Car?>(null) }
     var selectedDepartment by remember(defaultDepartment) { mutableStateOf(defaultDepartment) }
@@ -104,7 +111,7 @@ fun CarBookingScreen(
                     date = if (isEmergency) now.date.toString() else startDate.toString(),
                     scheduledStartTime = if (isEmergency) now.time.toString().substring(0, 5) else formatTimeLocal(startTime),
                     scheduledEndTime = if (isEmergency) null else formatTimeLocal(endTime),
-                    destination = destination,
+                    destination = destination.trim(),
                     department = selectedDepartment,
                     isEmergency = isEmergency,
                     returnDate = if (isEmergency) null else endDate.toString(),
@@ -299,36 +306,38 @@ fun CarBookingScreen(
             containerColor = Color(0xFFF5F7F6),
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
-                Surface(
-                    color = Color.White,
-                    shadowElevation = 8.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .navigationBarsPadding()
+                if (selectedTab == 0) {
+                    Surface(
+                        color = Color.White,
+                        shadowElevation = 8.dp,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Button(
-                            onClick = {
-                                focusManager.clearFocus()
-                                errorMessage = null
-                                showOverlay = true
-                            },
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            enabled = isFormComplete,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isFormComplete) Color(0xFF2D6A4F) else Color.LightGray,
-                                contentColor = Color.White,
-                                disabledContainerColor = Color.LightGray.copy(alpha = 0.5f),
-                                disabledContentColor = Color.Gray
-                            )
+                        Box(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .navigationBarsPadding()
                         ) {
-                            Text(
-                                if (isEmergency) "INICIAR VIAGEM" else "CONFIRMAR AGENDAMENTO",
-                                fontWeight = FontWeight.Bold
-                            )
+                            Button(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    errorMessage = null
+                                    showOverlay = true
+                                },
+                                modifier = Modifier.fillMaxWidth().height(56.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = isFormComplete,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isFormComplete) Color(0xFF2D6A4F) else Color.LightGray,
+                                    contentColor = Color.White,
+                                    disabledContainerColor = Color.LightGray.copy(alpha = 0.5f),
+                                    disabledContentColor = Color.Gray
+                                )
+                            ) {
+                                Text(
+                                    if (isEmergency) "INICIAR VIAGEM" else "CONFIRMAR AGENDAMENTO",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -339,7 +348,7 @@ fun CarBookingScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                // Header
+                // Header com Navegação por Abas
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -347,38 +356,102 @@ fun CarBookingScreen(
                             color = Color(0xFF1B4332),
                             shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
                         )
-                        .padding(top = 56.dp, bottom = 40.dp)
+                        .padding(top = 56.dp, bottom = 32.dp)
                         .padding(horizontal = 24.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = onBack) {
-                                Icon(CorporateIcons.Back, contentDescription = "Voltar", tint = Color.White)
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = onBack) {
+                                    Icon(CorporateIcons.Back, contentDescription = "Voltar", tint = Color.White)
+                                }
+                                Text(
+                                    if (selectedTab == 0) "Novo Agendamento" else "Veículos Agendados",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
-                            Text(
-                                "Novo Agendamento",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
+                            }
                         }
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
+
+                        // Seletor de Abas Inteligente
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.White.copy(alpha = 0.15f))
+                                .padding(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (selectedTab == 0) Color.White else Color.Transparent)
+                                    .clickable { selectedTab = 0 },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        CorporateIcons.Car,
+                                        contentDescription = null,
+                                        tint = if (selectedTab == 0) Color(0xFF1B4332) else Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "Agendar",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (selectedTab == 0) Color(0xFF1B4332) else Color.White,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (selectedTab == 1) Color.White else Color.Transparent)
+                                    .clickable { selectedTab = 1 },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        CorporateIcons.Calendar,
+                                        contentDescription = null,
+                                        tint = if (selectedTab == 1) Color(0xFF1B4332) else Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "Agendados",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (selectedTab == 1) Color(0xFF1B4332) else Color.White,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
                         }
                     }
                 }
 
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp)
-                        .offset(y = (-24).dp) 
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
+                if (selectedTab == 0) {
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .offset(y = (-24).dp) 
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
                     // Alerta de Erro
                     errorMessage?.let { msg ->
                         Surface(
@@ -795,6 +868,13 @@ fun CarBookingScreen(
                     // Espaço para não ficar colado na barra fixa
                     Spacer(Modifier.height(100.dp))
                 }
+            } else {
+                ScheduledCarsCalendarView(
+                    allBookings = allBookings,
+                    cars = cars,
+                    onNavigateToNewBooking = { selectedTab = 0 }
+                )
+            }
             }
         }
 
@@ -1031,4 +1111,546 @@ fun CustomVehicleTimePicker(
             }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ScheduledCarsCalendarView(
+    allBookings: List<Booking>,
+    cars: List<Car>,
+    onNavigateToNewBooking: () -> Unit
+) {
+    val today = remember {
+        val now = Clock.System.now()
+        now.toLocalDateTime(TimeZone.currentSystemDefault()).date
+    }
+
+    var selectedCalendarDate by remember { mutableStateOf(today) }
+    var currentDisplayMonthDate by remember { mutableStateOf(today) }
+    var selectedCarFilter by remember { mutableStateOf<String?>(null) }
+
+    val activeBookings = remember(allBookings) {
+        allBookings.filter { it.status.uppercase() != "CANCELADO" }
+    }
+
+    val daysWithBookings = remember(activeBookings) {
+        activeBookings.mapNotNull { booking ->
+            parseBookingDate(booking.date)
+        }.toSet()
+    }
+
+    val bookingsForSelectedDate = remember(activeBookings, selectedCalendarDate, selectedCarFilter) {
+        activeBookings.filter { booking ->
+            val bDate = parseBookingDate(booking.date)
+            val matchesDate = bDate == selectedCalendarDate
+            val matchesCar = selectedCarFilter == null || booking.carId == selectedCarFilter
+            matchesDate && matchesCar
+        }.sortedBy { it.scheduledStartTime }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .offset(y = (-16).dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        MiniCalendarCard(
+            displayDate = currentDisplayMonthDate,
+            selectedDate = selectedCalendarDate,
+            daysWithBookings = daysWithBookings,
+            today = today,
+            onDateSelected = { selectedCalendarDate = it },
+            onMonthChanged = { currentDisplayMonthDate = it },
+            onTodayClicked = {
+                currentDisplayMonthDate = today
+                selectedCalendarDate = today
+            }
+        )
+
+        if (cars.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                item {
+                    FilterChip(
+                        selected = selectedCarFilter == null,
+                        onClick = { selectedCarFilter = null },
+                        label = { Text("Todos os Carros", fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF1B4332),
+                            selectedLabelColor = Color.White,
+                            containerColor = Color.White,
+                            labelColor = Color.DarkGray
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                }
+                items(cars) { car ->
+                    FilterChip(
+                        selected = selectedCarFilter == car.id,
+                        onClick = {
+                            selectedCarFilter = if (selectedCarFilter == car.id) null else car.id
+                        },
+                        label = { Text(car.name, fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF1B4332),
+                            selectedLabelColor = Color.White,
+                            containerColor = Color.White,
+                            labelColor = Color.DarkGray
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Agendamentos do Dia",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1B4332)
+                )
+                Text(
+                    text = formatLongDatePt(selectedCalendarDate),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+
+            Surface(
+                color = Color(0xFF1B4332).copy(alpha = 0.1f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "${bookingsForSelectedDate.size} ${if (bookingsForSelectedDate.size == 1) "reserva" else "reservas"}",
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1B4332)
+                )
+            }
+        }
+
+        if (bookingsForSelectedDate.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(28.dp).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1B4332).copy(alpha = 0.08f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            CorporateIcons.Calendar,
+                            contentDescription = null,
+                            tint = Color(0xFF1B4332),
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        "Nenhum veículo agendado",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color.DarkGray
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Não há reservas marcadas para este dia.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedButton(
+                        onClick = onNavigateToNewBooking,
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B4332)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF1B4332))
+                    ) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("AGENDAR VEÍCULO", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                bookingsForSelectedDate.forEach { booking ->
+                    val car = cars.firstOrNull { it.id == booking.carId }
+                    ScheduledBookingCard(booking = booking, car = car)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(100.dp))
+    }
+}
+
+@Composable
+fun MiniCalendarCard(
+    displayDate: LocalDate,
+    selectedDate: LocalDate,
+    daysWithBookings: Set<LocalDate>,
+    today: LocalDate,
+    onDateSelected: (LocalDate) -> Unit,
+    onMonthChanged: (LocalDate) -> Unit,
+    onTodayClicked: () -> Unit
+) {
+    val monthNames = listOf(
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    )
+    val dayHeaders = listOf("Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb")
+
+    val year = displayDate.year
+    val month = displayDate.monthNumber
+    val daysInMonth = getDaysInMonth(year, month)
+    val firstDayOffset = (LocalDate(year, month, 1).dayOfWeek.isoDayNumber % 7)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${monthNames[month - 1]} $year",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1B4332)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    if (displayDate.year != today.year || displayDate.monthNumber != today.monthNumber) {
+                        Surface(
+                            color = Color(0xFF1B4332).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.clickable { onTodayClicked() }
+                        ) {
+                            Text(
+                                "HOJE",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1B4332)
+                            )
+                        }
+                    }
+                }
+
+                Row {
+                    IconButton(
+                        onClick = {
+                            val newYear = if (month == 1) year - 1 else year
+                            val newMonth = if (month == 1) 12 else month - 1
+                            onMonthChanged(LocalDate(newYear, newMonth, 1))
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(CorporateIcons.Back, "Mês anterior", tint = Color(0xFF1B4332), modifier = Modifier.size(18.dp))
+                    }
+                    IconButton(
+                        onClick = {
+                            val newYear = if (month == 12) year + 1 else year
+                            val newMonth = if (month == 12) 1 else month + 1
+                            onMonthChanged(LocalDate(newYear, newMonth, 1))
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(CorporateIcons.ChevronRight, "Próximo mês", tint = Color(0xFF1B4332), modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                dayHeaders.forEach { dayHeader ->
+                    Text(
+                        text = dayHeader,
+                        modifier = Modifier.weight(1f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                }
+            }
+
+            val totalCells = firstDayOffset + daysInMonth
+            val rows = (totalCells + 6) / 7
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                for (r in 0 until rows) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        for (c in 0 until 7) {
+                            val cellIndex = r * 7 + c
+                            val dayNumber = cellIndex - firstDayOffset + 1
+
+                            if (cellIndex < firstDayOffset || dayNumber > daysInMonth) {
+                                Spacer(modifier = Modifier.weight(1f).height(38.dp))
+                            } else {
+                                val thisDate = LocalDate(year, month, dayNumber)
+                                val isSelected = thisDate == selectedDate
+                                val isToday = thisDate == today
+                                val hasBookings = daysWithBookings.contains(thisDate)
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(38.dp)
+                                        .padding(2.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isSelected) Color(0xFF1B4332)
+                                            else if (isToday) Color(0xFF1B4332).copy(alpha = 0.1f)
+                                            else Color.Transparent
+                                        )
+                                        .border(
+                                            width = if (isToday && !isSelected) 1.dp else 0.dp,
+                                            color = if (isToday && !isSelected) Color(0xFF1B4332) else Color.Transparent,
+                                            shape = CircleShape
+                                        )
+                                        .clickable { onDateSelected(thisDate) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = dayNumber.toString(),
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else if (isToday) Color(0xFF1B4332) else Color.DarkGray
+                                        )
+                                        if (hasBookings) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(4.dp)
+                                                    .clip(CircleShape)
+                                                    .background(if (isSelected) Color.White else Color(0xFF2E7D32))
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ScheduledBookingCard(
+    booking: Booking,
+    car: Car?
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1B4332).copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(CorporateIcons.Car, null, tint = Color(0xFF1B4332), modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = car?.name ?: "Veículo",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        if (!car?.licensePlate.isNullOrBlank()) {
+                            Surface(
+                                color = Color.Gray.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = car.licensePlate,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.DarkGray
+                                )
+                            }
+                        }
+                    }
+                }
+
+                val (statusText, statusBg, statusColor) = when (booking.status.lowercase()) {
+                    "em_andamento", "em andamento" -> Triple("EM ANDAMENTO", Color(0xFFE3F2FD), Color(0xFF1976D2))
+                    "finalizado" -> Triple("FINALIZADO", Color(0xFFF5F5F5), Color(0xFF757575))
+                    "cancelado" -> Triple("CANCELADO", Color(0xFFFFEBEE), Color(0xFFD32F2F))
+                    else -> if (booking.isEmergency) Triple("EMERGENCIAL", Color(0xFFFFEBEE), Color(0xFFD32F2F))
+                            else Triple("AGENDADO", Color(0xFFE8F5E9), Color(0xFF2E7D32))
+                }
+
+                Surface(
+                    color = statusBg,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = statusText,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor
+                    )
+                }
+            }
+
+            HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(CorporateIcons.User, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        booking.userName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                if (!booking.department.isNullOrBlank()) {
+                    Surface(
+                        color = Color(0xFF1B4332).copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            booking.department!!,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF1B4332),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(CorporateIcons.Clock, null, tint = Color(0xFF1B4332), modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    val timeRange = if (!booking.scheduledEndTime.isNullOrBlank()) {
+                        "${booking.scheduledStartTime} - ${booking.scheduledEndTime}"
+                    } else {
+                        booking.scheduledStartTime
+                    }
+                    Text(
+                        timeRange,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1B4332)
+                    )
+                }
+
+                if (!booking.resolvedDestination.isNullOrBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(CorporateIcons.MapPin, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            booking.resolvedDestination!!,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.DarkGray,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun getDaysInMonth(year: Int, month: Int): Int {
+    return when (month) {
+        1, 3, 5, 7, 8, 10, 12 -> 31
+        4, 6, 9, 11 -> 30
+        2 -> if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) 29 else 28
+        else -> 30
+    }
+}
+
+private fun parseBookingDate(dateStr: String): LocalDate? {
+    if (dateStr.isBlank()) return null
+    return try {
+        LocalDate.parse(dateStr)
+    } catch (e: Exception) {
+        try {
+            val parts = dateStr.split("/")
+            if (parts.size == 3) {
+                LocalDate(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
+            } else null
+        } catch (e2: Exception) {
+            null
+        }
+    }
+}
+
+private fun formatLongDatePt(date: LocalDate): String {
+    val daysPt = listOf("Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado")
+    val monthsPt = listOf("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro")
+    val dayOfWeekName = daysPt[date.dayOfWeek.isoDayNumber % 7]
+    val monthName = monthsPt[date.monthNumber - 1]
+    return "$dayOfWeekName, ${date.dayOfMonth} de $monthName de ${date.year}"
 }

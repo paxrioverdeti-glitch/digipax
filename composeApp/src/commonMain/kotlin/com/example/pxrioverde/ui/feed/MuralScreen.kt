@@ -663,19 +663,32 @@ fun IdeaCard(
                     color = Color.Gray
                 )
 
-                Button(
-                    onClick = onVoteClick,
-                    enabled = !idea.hasVoted,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (idea.hasVoted) Color.LightGray else Color(0xFF2D6A4F)
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                ) {
+                if (idea.status.uppercase() == "APROVADO" && idea.publishedPostId != null) {
+                    Button(
+                        onClick = onVoteClick,
+                        enabled = !idea.hasVoted,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (idea.hasVoted) Color.LightGray else Color(0xFF2D6A4F)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (idea.hasVoted) "Apoiado (${idea.votesCount})" else "👍 Apoiar (${idea.votesCount})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
                     Text(
-                        text = if (idea.hasVoted) "Apoiado (${idea.votesCount})" else "👍 Apoiar (${idea.votesCount})",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                        text = when (idea.status.uppercase()) {
+                            "PENDENTE" -> "Aguardando análise"
+                            "APROVADO" -> "Aprovada; aguardando publicação"
+                            else -> "Não aprovada"
+                        },
+                        fontSize = 11.sp,
+                        color = statusColor,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }

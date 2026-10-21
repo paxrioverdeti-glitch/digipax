@@ -46,7 +46,7 @@ fun VehiclePortal(
         AlertDialog(
             onDismissRequest = { bookingToCancel = null },
             title = { Text("Cancelar Agendamento") },
-            text = { Text("Deseja realmente cancelar seu agendamento para ${bookingToCancel?.destination}?") },
+            text = { Text("Deseja realmente cancelar seu agendamento para ${bookingToCancel?.resolvedDestination}?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -239,7 +239,7 @@ fun BookingItemCard(booking: Booking, onCheckOut: () -> Unit, onCancel: () -> Un
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = booking.destination ?: "Destino não informado",
+                        text = booking.resolvedDestination ?: "Destino não informado",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1B4332),
@@ -394,7 +394,7 @@ fun InactiveBookingItemCard(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = booking.destination ?: "Sem Destino",
+                        text = booking.resolvedDestination ?: "Sem Destino",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1B4332),

@@ -3,6 +3,7 @@ package com.example.pxrioverde.ui.user
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -11,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.pxrioverde.model.Booking
+import com.example.pxrioverde.util.compressTripPhoto
 import com.example.pxrioverde.viewmodel.TripViewModel
 import java.io.File
 
@@ -35,10 +37,7 @@ actual fun VehicleCheckOutWrapper(
     ) { success ->
         if (success && imageUri != null && currentPhotoIndex != -1) {
             try {
-                val bytes = context.contentResolver.openInputStream(imageUri)?.readBytes()
-                if (bytes != null) {
-                    viewModel.setCapturedPhoto(currentPhotoIndex, bytes)
-                }
+                viewModel.setCapturedPhoto(currentPhotoIndex, compressTripPhoto(context, imageUri))
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -87,8 +86,17 @@ actual fun VehicleCheckOutWrapper(
         onTakePhoto = { index -> launchCamera(index) },
         onSubmit = { km ->
             if (isFinishing) {
-                viewModel.finishBooking(booking, km) { success ->
-                    if (success) onSuccess()
+                viewModel.finishBooking(booking, km) { success, inspectionError ->
+                    if (success) {
+                        if (inspectionError != null) {
+                            Toast.makeText(
+                                context,
+                                "Viagem finalizada, mas a análise de avarias não foi concluída. Avise o gestor da frota.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        onSuccess()
+                    }
                 }
             } else {
                 viewModel.submitTripStart(booking, km) { success ->

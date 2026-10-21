@@ -57,7 +57,9 @@ class FeedViewModel(
             }
 
             _ideas.value = fetchedIdeas.map { idea ->
-                idea.copy(hasVoted = idea.id != null && votedIdeaIds.contains(idea.id))
+                idea.copy(
+                    hasVoted = idea.hasVoted || (idea.id != null && votedIdeaIds.contains(idea.id))
+                )
             }
 
             _isLoading.value = false
@@ -172,7 +174,11 @@ class FeedViewModel(
         }
 
         viewModelScope.launch {
-            repository.voteIdea(ideaId, newCount)
+            if (!repository.voteIdea(ideaId)) {
+                votedIdeaIds.remove(ideaId)
+                _userMessage.value = "Não foi possível apoiar esta ideia."
+            }
+            loadData()
         }
     }
 

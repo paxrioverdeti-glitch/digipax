@@ -30,10 +30,14 @@ data class Booking(
     @SerialName("returnDate") val returnDate: String? = null,
     @SerialName("returnTime") val returnTime: String? = null,
     @SerialName("location") val destination: String? = null,
+    @SerialName("destination") val legacyDestination: String? = null,
     @SerialName("sector") val department: String? = null,
     @SerialName("isEmergency") val isEmergency: Boolean = false
 ) {
     val userAvatarUrl: String? get() = avatarUrl
+    val resolvedDestination: String?
+        get() = destination?.takeIf { it.isNotBlank() }
+            ?: legacyDestination?.takeIf { it.isNotBlank() }
 }
 
 @Serializable

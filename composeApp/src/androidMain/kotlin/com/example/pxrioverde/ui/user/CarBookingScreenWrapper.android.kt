@@ -3,8 +3,6 @@ package com.example.pxrioverde.ui.user
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -13,9 +11,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.pxrioverde.model.User
+import com.example.pxrioverde.util.compressTripPhoto
 import com.example.pxrioverde.viewmodel.TripViewModel
 import java.io.File
-import java.io.ByteArrayOutputStream
 
 @Composable
 actual fun CarBookingScreenWrapper(
@@ -35,33 +33,7 @@ actual fun CarBookingScreenWrapper(
     ) { success ->
         if (success && imageUri != null && currentPhotoIndex != -1) {
             try {
-                val bytes = context.contentResolver.openInputStream(imageUri)?.readBytes()
-                if (bytes != null) {
-                    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    if (bitmap != null) {
-                        val maxDimension = maxOf(bitmap.width, bitmap.height)
-                        val scale = if (maxDimension > 1600) 1600f / maxDimension else 1f
-                        val resized = if (scale < 1f) {
-                            Bitmap.createScaledBitmap(
-                                bitmap,
-                                (bitmap.width * scale).toInt(),
-                                (bitmap.height * scale).toInt(),
-                                true
-                            )
-                        } else {
-                            bitmap
-                        }
-                        val compressed = ByteArrayOutputStream().use { output ->
-                            resized.compress(Bitmap.CompressFormat.JPEG, 75, output)
-                            output.toByteArray()
-                        }
-                        if (resized !== bitmap) resized.recycle()
-                        bitmap.recycle()
-                        viewModel.setCapturedPhoto(currentPhotoIndex, compressed)
-                    } else {
-                        viewModel.setCapturedPhoto(currentPhotoIndex, bytes)
-                    }
-                }
+                viewModel.setCapturedPhoto(currentPhotoIndex, compressTripPhoto(context, imageUri))
             } catch (e: Exception) {
                 e.printStackTrace()
             }

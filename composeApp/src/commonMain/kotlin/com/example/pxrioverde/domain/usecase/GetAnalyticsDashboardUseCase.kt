@@ -89,7 +89,9 @@ class GetAnalyticsDashboardUseCase(
                 date = booking.date,
                 startTime = actualStart ?: booking.startTime ?: booking.scheduledStartTime,
                 endTime = actualEnd ?: booking.endTime ?: booking.scheduledEndTime ?: "--:--",
-                destination = trip?.destination ?: booking.destination ?: "Destino não informado",
+                destination = trip?.destination?.takeIf { it.isNotBlank() }
+                    ?: booking.resolvedDestination
+                    ?: "Destino não informado",
                 kmTraveled = km,
                 isFinished = booking.status.equals("finalizado", ignoreCase = true),
                 photoUrls = trip?.photoUrls ?: emptyList(),

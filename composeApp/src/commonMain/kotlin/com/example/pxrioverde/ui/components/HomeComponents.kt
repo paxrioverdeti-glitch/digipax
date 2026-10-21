@@ -900,7 +900,7 @@ fun RecentTripsSection(
                     }
 
                     TripItemCard(
-                        destination = booking.destination ?: "Destino não informado",
+                        destination = booking.resolvedDestination ?: "Destino não informado",
                         date = booking.date,
                         status = statusText,
                         statusColor = statusColor,
@@ -1211,7 +1211,7 @@ fun TripItemCardDesktop(booking: Booking, onNavigateToCheckOut: (Booking) -> Uni
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = booking.destination ?: "Destino",
+                text = booking.resolvedDestination ?: "Destino",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,

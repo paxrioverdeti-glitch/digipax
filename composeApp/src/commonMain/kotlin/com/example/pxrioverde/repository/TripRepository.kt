@@ -57,13 +57,19 @@ private data class BookingStatusPayload(
     val status: String
 )
 
+@Serializable
+private data class BookingDestinationPayload(
+    val id: String,
+    val location: String? = null
+)
+
 class TripRepository(
     private val supabase: SupabaseClient,
     private val imageCompressor: ImageCompressor,
     private val tripDao: TripDao? = null
 ) {
     suspend fun getBookings(userId: String, page: Int? = null, pageSize: Int = 20): List<Booking> {
-        return supabase.from("bookings_api")
+        val bookings = supabase.from("bookings_api")
             .select {
                 filter {
                     eq("userId", userId)
@@ -76,11 +82,12 @@ class TripRepository(
                 range(start.toLong(), end.toLong())
             }
             .decodeList<Booking>()
+        return attachCanonicalDestinations(bookings)
     }
 
     suspend fun getAllBookings(page: Int? = null, pageSize: Int = 50): List<Booking> {
         return try {
-            supabase.from("bookings_api")
+            val bookings = supabase.from("bookings_api")
                 .select(Columns.raw("*, avatar_url")) {
                     order("createdAt", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                     
@@ -89,9 +96,34 @@ class TripRepository(
                     range(start.toLong(), end.toLong())
                 }
                 .decodeList<Booking>()
+            attachCanonicalDestinations(bookings)
         } catch (e: Exception) {
             println("Erro ao buscar todos os agendamentos: ${e.message}")
             emptyList()
+        }
+    }
+
+    private suspend fun attachCanonicalDestinations(bookings: List<Booking>): List<Booking> {
+        val bookingIds = bookings.mapNotNull { it.id }.distinct()
+        if (bookingIds.isEmpty()) return bookings
+
+        val destinationsByBookingId = supabase.from("bookings")
+            .select(Columns.raw("id, location")) {
+                filter {
+                    isIn("id", bookingIds)
+                }
+            }
+            .decodeList<BookingDestinationPayload>()
+            .associate { it.id to it.location }
+
+        return bookings.map { booking ->
+            val canonicalDestination = destinationsByBookingId[booking.id]
+                ?.takeIf { it.isNotBlank() }
+            booking.copy(
+                destination = canonicalDestination
+                    ?: booking.destination?.takeIf { it.isNotBlank() }
+                    ?: booking.legacyDestination?.takeIf { it.isNotBlank() }
+            )
         }
     }
 
@@ -134,6 +166,16 @@ class TripRepository(
 
     suspend fun startTrip(trip: Trip) {
         supabase.from("trips").insert(trip)
+    }
+
+    suspend fun getTripByBookingId(bookingId: String): Trip? {
+        return supabase.from("trips")
+            .select {
+                filter {
+                    eq("booking_id", bookingId)
+                }
+            }
+            .decodeSingleOrNull<Trip>()
     }
 
     suspend fun updateTrip(trip: Trip) {

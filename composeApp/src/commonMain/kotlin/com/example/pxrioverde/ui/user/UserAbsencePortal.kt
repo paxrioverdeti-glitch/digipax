@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pxrioverde.model.ComunicadoState
+import com.example.pxrioverde.service.NotificationService
 import com.example.pxrioverde.ui.components.CorporateIcons
 import com.example.pxrioverde.ui.components.StrategicEmptyState
 import com.example.pxrioverde.viewmodel.AbsenceViewModel
@@ -35,6 +36,7 @@ fun UserAbsencePortal(
     avatarUrl: String?,
     sector: String,
     viewModel: AbsenceViewModel,
+    notificationService: NotificationService? = null,
     onBack: () -> Unit
 ) {
     val userAbsences by viewModel.userAbsences.collectAsState()
@@ -64,6 +66,7 @@ fun UserAbsencePortal(
             onStateChange = { newAbsenceState = it },
             onSave = { state ->
                 viewModel.submitAbsence(state) {
+                    notificationService?.notifyUserAbsenceSubmitted(state.type.label)
                     showCreateForm = false
                     viewModel.loadUserAbsences(userId)
                 }

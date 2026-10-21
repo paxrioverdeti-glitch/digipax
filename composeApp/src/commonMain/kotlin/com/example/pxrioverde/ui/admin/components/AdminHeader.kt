@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +29,7 @@ fun AdminHeader(
     notificationService: NotificationService,
     onNotificationsClick: () -> Unit,
     onProfileClick: () -> Unit,
+    onRefreshClick: () -> Unit,
     isDesktop: Boolean = false
 ) {
     val unreadCount by notificationService.unreadCount.collectAsState()
@@ -61,6 +64,7 @@ fun AdminHeader(
                         2 -> "Análise de Dados"
                         3 -> "Gestão de Ausências"
                         5 -> "Mural e Ideias"
+                        7 -> "Relatório de Avarias de Lataria"
                         else -> "Painel Administrativo"
                     }
                     Text(
@@ -73,6 +77,18 @@ fun AdminHeader(
 
                 // Seção Direita: Notificações e Perfil
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onRefreshClick) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = if (selectedTabIndex == 2) {
+                                "Atualizar métricas"
+                            } else {
+                                "Atualizar dados"
+                            },
+                            tint = Color(0xFF1B4332)
+                        )
+                    }
+
                     IconButton(onClick = onNotificationsClick) {
                         BadgedBox(
                             badge = {

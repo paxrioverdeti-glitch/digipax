@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Warning
 import com.example.pxrioverde.ui.components.CorporateIcons
 import org.jetbrains.compose.resources.painterResource
 import pxrioverde.composeapp.generated.resources.Res
@@ -59,16 +61,12 @@ fun AdminSideBar(
         },
         contentColor = Color.White
     ) {
-        Spacer(modifier = Modifier.weight(1f))
-
         AdminNavItem(
             selected = selectedSection == 0,
             onClick = { onSectionSelected(0) },
             icon = CorporateIcons.Tickets,
             label = "Chamados"
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         AdminNavItem(
             selected = selectedSection == 1,
@@ -84,7 +82,12 @@ fun AdminSideBar(
             }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        AdminNavItem(
+            selected = selectedSection == 7,
+            onClick = { onSectionSelected(7) },
+            icon = Icons.Outlined.Warning,
+            label = "Avarias"
+        )
 
         AdminNavItem(
             selected = selectedSection == 2,
@@ -93,16 +96,12 @@ fun AdminSideBar(
             label = "Métricas"
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         AdminNavItem(
             selected = selectedSection == 3,
             onClick = { onSectionSelected(3) },
             icon = CorporateIcons.User,
             label = "Ausências"
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         AdminNavItem(
             selected = selectedSection == 5,
@@ -111,7 +110,12 @@ fun AdminSideBar(
             label = "Mural"
         )
 
-        Spacer(modifier = Modifier.weight(1f))
+        AdminNavItem(
+            selected = selectedSection == 6,
+            onClick = { onSectionSelected(6) },
+            icon = CorporateIcons.User,
+            label = "Convidar"
+        )
     }
 }
 

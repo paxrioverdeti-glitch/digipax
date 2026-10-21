@@ -138,6 +138,12 @@ compose.desktop {
             targetFormats(TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Pkg)
             packageName = "Pxrioverde"
             packageVersion = "1.0.0"
+
+            windows {
+                shortcut = true
+                menu = true
+                dirChooser = true
+            }
         }
     }
 }

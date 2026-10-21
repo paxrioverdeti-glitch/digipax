@@ -8,7 +8,9 @@ import com.example.pxrioverde.repository.TripRepository
 import com.example.pxrioverde.repository.AbsenceRepository
 import com.example.pxrioverde.repository.PurchaseRepository
 import com.example.pxrioverde.repository.UserPreferencesRepository
+import com.example.pxrioverde.repository.VehicleInspectionRepository
 import com.example.pxrioverde.service.AuthService
+import com.example.pxrioverde.service.GeminiInspectionService
 import com.example.pxrioverde.service.NotificationService
 import com.example.pxrioverde.service.supabase
 import com.example.pxrioverde.viewmodel.*
@@ -37,6 +39,7 @@ val appModule = module {
     // Services
     singleOf(::AuthService)
     singleOf(::NotificationService)
+    single { GeminiInspectionService() }
 
     // Repositories
     singleOf(::UserPreferencesRepository)
@@ -45,6 +48,7 @@ val appModule = module {
     single { TripRepository(get(), get(), get()) }
     single { AbsenceRepository(get()) }
     single { PurchaseRepository(get()) }
+    single { VehicleInspectionRepository(get(), get()) }
 
     // UseCases
     singleOf(::GetAnalyticsDashboardUseCase)
@@ -61,4 +65,5 @@ val appModule = module {
     viewModelOf(::AdminViewModel)
     viewModelOf(::PurchaseViewModel)
     viewModelOf(::FeedViewModel)
+    viewModelOf(::VehicleDamageViewModel)
 }

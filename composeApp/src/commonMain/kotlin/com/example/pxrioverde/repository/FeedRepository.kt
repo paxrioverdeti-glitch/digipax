@@ -3,9 +3,15 @@ package com.example.pxrioverde.repository
 import com.example.pxrioverde.model.FeedPost
 import com.example.pxrioverde.model.Idea
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
@@ -81,11 +87,27 @@ class FeedRepository(
 
     suspend fun getIdeas(): List<Idea> = withContext(Dispatchers.Default) {
         try {
-            supabase.from("ideas")
+            val ideas = supabase.from("ideas")
                 .select {
                     order("created_at", Order.DESCENDING)
                 }
                 .decodeList<Idea>()
+
+            val userId = supabase.auth.currentUserOrNull()?.id
+            val votedIdeaIds = if (userId == null) {
+                emptySet()
+            } else {
+                supabase.from("idea_votes")
+                    .select {
+                        filter { eq("user_id", userId) }
+                    }
+                    .decodeList<IdeaVoteDto>()
+                    .mapTo(mutableSetOf()) { it.ideaId }
+            }
+
+            ideas.map { idea ->
+                idea.copy(hasVoted = idea.id != null && idea.id in votedIdeaIds)
+            }
         } catch (e: Exception) {
             println("FeedRepository: Erro ao buscar ideias: ${e.message}")
             emptyList()
@@ -117,15 +139,15 @@ class FeedRepository(
         }
     }
 
-    suspend fun voteIdea(ideaId: String, newVotesCount: Int): Boolean = withContext(Dispatchers.Default) {
+    suspend fun voteIdea(ideaId: String): Boolean = withContext(Dispatchers.Default) {
         try {
-            supabase.from("ideas").update(
-                mapOf("votes_count" to newVotesCount)
-            ) {
-                filter {
-                    eq("id", ideaId)
-                }
-            }
+            supabase.postgrest.rpc(
+                "vote_idea",
+                Json.encodeToJsonElement(
+                    VoteIdeaParams.serializer(),
+                    VoteIdeaParams(ideaId = ideaId)
+                ).jsonObject
+            )
             true
         } catch (e: Exception) {
             println("FeedRepository: Erro ao votar na ideia: ${e.message}")
@@ -148,6 +170,16 @@ class FeedRepository(
             false
         }
     }
+
+    @Serializable
+    private data class IdeaVoteDto(
+        @SerialName("idea_id") val ideaId: String
+    )
+
+    @Serializable
+    private data class VoteIdeaParams(
+        @SerialName("p_idea_id") val ideaId: String
+    )
 
     suspend fun publishIdea(
         idea: Idea,

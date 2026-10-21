@@ -26,6 +26,7 @@ class NotificationService(private val notificationManager: NotificationManager? 
         subscribeToTicketUpdates(user)
         subscribeToAbsenceUpdates(user)
         subscribeToPurchaseUpdates(user)
+        subscribeToInspectionUpdates(user)
     }
 
     fun subscribeToTicketUpdates(user: User) {
@@ -95,6 +96,12 @@ class NotificationService(private val notificationManager: NotificationManager? 
         }
     }
 
+    fun notifyUserAbsenceSubmitted(typeLabel: String) {
+        val title = "Comunicado Enviado"
+        val text = "Seu comunicado de $typeLabel foi registrado e enviado ao supervisor."
+        showNotification(title, text)
+    }
+
     fun subscribeToAbsenceUpdates(user: User) {
         subscriptionScope.launch {
             try {
@@ -106,7 +113,7 @@ class NotificationService(private val notificationManager: NotificationManager? 
                         table = "absences"
                     }.collect { action ->
                         try {
-                            val absence = action.decodeRecord<ComunicadoState>()
+                            val absence = action.decodeRecord<RealtimeAbsenceRow>()
                             if (absence.userId == user.id && absence.adminFeedback != null) {
                                 val title = "Ausência Avaliada"
                                 val text = "Seu comunicado de ${absence.type.label} foi avaliado."
@@ -125,10 +132,11 @@ class NotificationService(private val notificationManager: NotificationManager? 
                             table = "absences"
                         }.collect { action ->
                             try {
-                                val absence = action.decodeRecord<ComunicadoState>()
+                                val absence = action.decodeRecord<RealtimeAbsenceRow>()
                                 if (absence.targetApproverId == user.id || absence.targetApproverId == null || user.role == UserRole.SUPERVISOR || user.role == UserRole.ENCARREGADO || user.role == UserRole.ADMIN) {
                                     val title = "Nova Solicitação de Ausência"
-                                    val text = "${absence.userName} enviou um comunicado de ${absence.type.label}."
+                                    val name = if (absence.userName.isNotBlank()) absence.userName else "Um colaborador"
+                                    val text = "$name enviou um comunicado de ${absence.type.label}."
                                     showNotification(title, text)
                                 }
                             } catch (e: Exception) {
@@ -194,6 +202,44 @@ class NotificationService(private val notificationManager: NotificationManager? 
         }
     }
 
+    /**
+     * Inscreve o Admin/Gestor para receber alertas de vistoria veicular em tempo real.
+     */
+    fun subscribeToInspectionUpdates(user: User) {
+        subscriptionScope.launch {
+            try {
+                if (user.role == UserRole.ADMIN || user.role == UserRole.SUPERVISOR || user.role == UserRole.ENCARREGADO) {
+                    val channel = supabase.realtime.channel("inspection_updates_${user.id}")
+
+                    launch {
+                        channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+                            table = "inspection_reports"
+                        }.collect { action ->
+                            try {
+                                val report = action.decodeRecord<RealtimeInspectionReportRow>()
+                                if (report.houveNovoDano) {
+                                    val title = "⚠️ Dano na Lataria Detectado"
+                                    val text = "Novo dano em veículo da frota: ${report.resumoGeral.take(80)}"
+                                    showNotification(title, text)
+                                } else {
+                                    val title = "🚗 Vistoria de Frota Concluída"
+                                    val text = "Vistoria concluída sem novos danos identificados."
+                                    showNotification(title, text)
+                                }
+                            } catch (e: Exception) {
+                                println("DEBUG: Erro ao processar notificação de vistoria: ${e.message}")
+                            }
+                        }
+                    }
+
+                    channel.subscribe()
+                }
+            } catch (e: Exception) {
+                println("DEBUG: Erro ao se inscrever em vistorias: ${e.message}")
+            }
+        }
+    }
+
     private fun showNotification(title: String, text: String) {
         val newNotif = CorporateNotification(
             id = Clock.System.now().toEpochMilliseconds().toString(),
@@ -204,7 +250,7 @@ class NotificationService(private val notificationManager: NotificationManager? 
         _notifications.value = listOf(newNotif) + _notifications.value
         _unreadCount.value += 1
         
-        // Mostra notificação do sistema
+        // Mostra notificação nativa do sistema operacional do dispositivo mobile (Android/iOS)
         notificationManager?.showNotification(title, text)
     }
 
@@ -212,3 +258,29 @@ class NotificationService(private val notificationManager: NotificationManager? 
         _unreadCount.value = 0
     }
 }
+
+@kotlinx.serialization.Serializable
+private data class RealtimeAbsenceRow(
+    val id: String? = null,
+    @kotlinx.serialization.SerialName("user_id") val userIdSnake: String? = null,
+    @kotlinx.serialization.SerialName("userId") val userIdCamel: String? = null,
+    @kotlinx.serialization.SerialName("user_name") val userNameSnake: String? = null,
+    @kotlinx.serialization.SerialName("userName") val userNameCamel: String? = null,
+    @kotlinx.serialization.SerialName("target_approver_id") val targetApproverIdSnake: String? = null,
+    @kotlinx.serialization.SerialName("targetApproverId") val targetApproverIdCamel: String? = null,
+    val type: AbsenceType = AbsenceType.ATRASO,
+    @kotlinx.serialization.SerialName("admin_feedback") val adminFeedbackSnake: AdminFeedback? = null,
+    @kotlinx.serialization.SerialName("adminFeedback") val adminFeedbackCamel: AdminFeedback? = null
+) {
+    val userId: String get() = userIdSnake ?: userIdCamel ?: ""
+    val userName: String get() = userNameSnake ?: userNameCamel ?: ""
+    val targetApproverId: String? get() = targetApproverIdSnake ?: targetApproverIdCamel
+    val adminFeedback: AdminFeedback? get() = adminFeedbackSnake ?: adminFeedbackCamel
+}
+
+@kotlinx.serialization.Serializable
+private data class RealtimeInspectionReportRow(
+    val id: String? = null,
+    @kotlinx.serialization.SerialName("houve_novo_dano") val houveNovoDano: Boolean = false,
+    @kotlinx.serialization.SerialName("resumo_geral") val resumoGeral: String = ""
+)

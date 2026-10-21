@@ -22,7 +22,7 @@ actual fun VehicleCheckOutWrapper(
             // No camera
         },
         onSubmit = { km ->
-            viewModel.finishBooking(booking, km) { success ->
+            viewModel.finishBooking(booking, km) { success, _ ->
                 if (success) onSuccess()
             }
         },

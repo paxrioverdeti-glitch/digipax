@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.material.icons.outlined.ConfirmationNumber
 import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Star
@@ -77,6 +78,19 @@ fun AdminDashboard(
         val showNotifications by adminViewModel.showNotifications.collectAsState()
         val selectedAbsence by adminViewModel.selectedAbsence.collectAsState()
         val selectedTicket by viewModel.selectedTicket.collectAsState()
+        var refreshRequest by remember { mutableStateOf(0) }
+
+        fun refreshSelectedSection() {
+            when (selectedSection) {
+                0 -> viewModel.loadAllTickets()
+                1, 6 -> refreshRequest++
+                2 -> analyticsViewModel.loadData()
+                3 -> absenceViewModel.loadAbsences()
+                4 -> purchaseViewModel.loadAllRequests()
+                5 -> feedViewModel.loadData()
+                7 -> refreshRequest++
+            }
+        }
 
         CommonBackHandler(enabled = selectedTicket != null || selectedAbsence != null || selectedSection != 0 || showProfile || showNotifications) {
             if (selectedTicket != null) {
@@ -111,6 +125,7 @@ fun AdminDashboard(
                             onProfileClick = { 
                                 adminViewModel.setShowProfile(true)
                             },
+                            onRefreshClick = ::refreshSelectedSection,
                             isDesktop = true
                         )
 
@@ -131,6 +146,7 @@ fun AdminDashboard(
                                 absenceViewModel = absenceViewModel,
                                 purchaseViewModel = purchaseViewModel,
                                 feedViewModel = feedViewModel,
+                                refreshRequest = refreshRequest,
                                 isDesktop = true
                             )
                         }
@@ -152,7 +168,8 @@ fun AdminDashboard(
                                 },
                                 onProfileClick = { 
                                     adminViewModel.setShowProfile(true)
-                                }
+                                },
+                                onRefreshClick = ::refreshSelectedSection
                             )
                         }
                     },
@@ -252,6 +269,42 @@ fun AdminDashboard(
                                         unselectedTextColor = Color.Gray
                                     )
                                 )
+                                NavigationBarItem(
+                                    selected = selectedSection == 7,
+                                    onClick = { adminViewModel.selectSection(7) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Warning,
+                                            contentDescription = "Avarias"
+                                        )
+                                    },
+                                    label = { Text("Avarias") },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = Color(0xFF1B4332),
+                                        selectedTextColor = Color(0xFF1B4332),
+                                        indicatorColor = Color(0xFF1B4332).copy(alpha = 0.1f),
+                                        unselectedIconColor = Color.Gray,
+                                        unselectedTextColor = Color.Gray
+                                    )
+                                )
+                                NavigationBarItem(
+                                    selected = selectedSection == 6,
+                                    onClick = { adminViewModel.selectSection(6) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = CorporateIcons.User,
+                                            contentDescription = "Convidar"
+                                        )
+                                    },
+                                    label = { Text("Convidar") },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = Color(0xFF1B4332),
+                                        selectedTextColor = Color(0xFF1B4332),
+                                        indicatorColor = Color(0xFF1B4332).copy(alpha = 0.1f),
+                                        unselectedIconColor = Color.Gray,
+                                        unselectedTextColor = Color.Gray
+                                    )
+                                )
                             }
                         }
                     },
@@ -279,6 +332,7 @@ fun AdminDashboard(
                             absenceViewModel = absenceViewModel,
                             purchaseViewModel = purchaseViewModel,
                             feedViewModel = feedViewModel,
+                            refreshRequest = refreshRequest,
                             isDesktop = false
                         )
                     }
@@ -305,6 +359,7 @@ private fun AdminContentArea(
     absenceViewModel: AbsenceViewModel,
     purchaseViewModel: PurchaseViewModel,
     feedViewModel: FeedViewModel,
+    refreshRequest: Int,
     isDesktop: Boolean
 ) {
     when {
@@ -319,11 +374,13 @@ private fun AdminContentArea(
         )
         else -> when (selectedSection) {
             0 -> TicketManagementSection(user, viewModel, isDesktop)
-            1 -> CarManagementSection(isDesktop)
+            1 -> CarManagementSection(refreshRequest, isDesktop)
             2 -> AdminAnalyticsScreen(viewModel = analyticsViewModel, isDesktop = isDesktop)
-            3 -> AbsenceManagementSection(selectedAbsence, onSelectAbsence, absenceViewModel, isDesktop)
+            3 -> AbsenceManagementSection(selectedAbsence, onSelectAbsence, absenceViewModel, refreshRequest, isDesktop)
             4 -> PurchaseManagementSection(user, purchaseViewModel, isDesktop)
             5 -> MuralScreen(user = user, viewModel = feedViewModel)
+            6 -> InviteManagementSection(isDesktop, refreshRequest)
+            7 -> VehicleDamageReportsScreen(refreshRequest = refreshRequest)
         }
     }
 }
@@ -528,7 +585,7 @@ fun AdminTicketItemSmall(ticket: Ticket, isSelected: Boolean, onClick: () -> Uni
 }
 
 @Composable
-fun CarManagementSection(isDesktop: Boolean = false) {
+fun CarManagementSection(refreshRequest: Int = 0, isDesktop: Boolean = false) {
     val scope = rememberCoroutineScope()
     var showAddDialog by remember { mutableStateOf(false) }
     val cars = remember { mutableStateListOf<Car>() }
@@ -536,7 +593,7 @@ fun CarManagementSection(isDesktop: Boolean = false) {
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refreshRequest) {
         isLoading = true
         try {
             val response = supabase.from("cars").select().decodeList<Car>()
@@ -837,13 +894,17 @@ fun AbsenceManagementSection(
     selectedAbsence: ComunicadoState?,
     onSelectAbsence: (ComunicadoState?) -> Unit,
     viewModel: AbsenceViewModel,
+    refreshRequest: Int = 0,
     isDesktop: Boolean = false
 ) {
     val absences by viewModel.absences.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refreshRequest) {
         viewModel.loadAbsences()
+    }
+
+    LaunchedEffect(Unit) {
         viewModel.observeAbsences()
     }
 
@@ -950,6 +1011,19 @@ fun AbsenceItemCard(absence: ComunicadoState, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(absence.userName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
                 Text("${absence.type.label} • ${absence.date}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                if (absence.createdAt > 0L) {
+                    val createdAt = Instant.fromEpochMilliseconds(absence.createdAt)
+                        .toLocalDateTime(TimeZone.currentSystemDefault())
+                    val createdDate = createdAt.dayOfMonth.toString().padStart(2, '0')
+                    val createdMonth = createdAt.monthNumber.toString().padStart(2, '0')
+                    val createdHour = createdAt.hour.toString().padStart(2, '0')
+                    val createdMinute = createdAt.minute.toString().padStart(2, '0')
+                    Text(
+                        "Comunicado em $createdDate/$createdMonth/${createdAt.year} às $createdHour:$createdMinute",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             
             if (absence.adminFeedback != null) {

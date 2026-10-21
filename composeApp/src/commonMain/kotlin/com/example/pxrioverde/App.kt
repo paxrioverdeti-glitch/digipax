@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import com.example.pxrioverde.util.CommonBackHandler
+import com.example.pxrioverde.util.RequestNotificationPermission
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -161,6 +162,9 @@ fun MainAppContent(initialUser: User? = null) {
     val feedViewModel: FeedViewModel = koinViewModel()
     val notificationService: NotificationService = koinInject()
 
+    // Solicita permissão de notificação no celular/plataforma ao entrar no app
+    RequestNotificationPermission()
+
     // Sincroniza o usuário local e recarrega dados em mudanças de sessão (incluindo refresh de token)
     LaunchedEffect(sessionStatus) {
         if (sessionStatus is SessionStatus.Authenticated) {
@@ -231,6 +235,7 @@ fun MainAppContent(initialUser: User? = null) {
                     avatarUrl = currentUser!!.avatarUrl,
                     sector = userSector,
                     viewModel = absenceViewModel,
+                    notificationService = notificationService,
                     onBack = { mainViewModel.goBack() }
                 )
                 is AppScreen.PurchaseRequest -> PurchaseRequestScreen(
@@ -330,6 +335,11 @@ fun LoginScreen(onLogin: (User) -> Unit) {
     var rememberMe by remember { mutableStateOf(LocalStorage.getBoolean("rememberMe", true)) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Primeiro acesso (cadastro)
+    var isSignUpMode by remember { mutableStateOf(false) }
+    var confirmPassword by remember { mutableStateOf("") }
+    var infoMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         if (rememberMe) {
@@ -453,13 +463,13 @@ fun LoginScreen(onLogin: (User) -> Unit) {
                         )
                         
                         Text(
-                            "Bem-vindo",
+                            if (isSignUpMode) "Primeiro acesso" else "Bem-vindo",
                             style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "Identifique-se para continuar",
+                            if (isSignUpMode) "Crie seu e-mail e senha de acesso" else "Identifique-se para continuar",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -568,24 +578,81 @@ fun LoginScreen(onLogin: (User) -> Unit) {
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = rememberMe,
-                                onCheckedChange = { rememberMe = it },
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = MaterialTheme.colorScheme.primary,
-                                    uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                                    checkmarkColor = Color.White
+                        // Campo Confirmar Senha (somente no primeiro acesso)
+                        AnimatedVisibility(visible = isSignUpMode) {
+                            Column {
+                                OutlinedTextField(
+                                    value = confirmPassword,
+                                    onValueChange = { confirmPassword = it; errorMessage = null },
+                                    placeholder = { Text("Confirme a senha", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Password,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
+                                        focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                                        unfocusedContainerColor = Color.Transparent,
+                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        cursorColor = MaterialTheme.colorScheme.primary
+                                    ),
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = CorporateIcons.Support,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 )
-                            )
-                            Text(
-                                "Manter conectado",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+
+                        // "Manter conectado" so faz sentido no login
+                        AnimatedVisibility(visible = !isSignUpMode) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = rememberMe,
+                                    onCheckedChange = { rememberMe = it },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = MaterialTheme.colorScheme.primary,
+                                        uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                        checkmarkColor = Color.White
+                                    )
+                                )
+                                Text(
+                                    "Manter conectado",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+
+                        if (infoMessage != null) {
+                            Surface(
+                                modifier = Modifier.padding(top = 16.dp).fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                            ) {
+                                Text(
+                                    text = infoMessage!!,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(12.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
 
                         if (errorMessage != null) {
@@ -610,27 +677,62 @@ fun LoginScreen(onLogin: (User) -> Unit) {
                         Button(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                isLoading = true
-                                scope.launch {
-                                    try {
-                                        LocalStorage.putBoolean("rememberMe", rememberMe)
-                                        if (rememberMe) {
-                                            LocalStorage.putString("savedEmail", email)
-                                            LocalStorage.putString("savedPassword", password)
-                                        } else {
-                                            LocalStorage.putString("savedEmail", "")
-                                            LocalStorage.putString("savedPassword", "")
+                                errorMessage = null
+                                infoMessage = null
+
+                                if (isSignUpMode) {
+                                    // ---- PRIMEIRO ACESSO (cadastro) ----
+                                    if (password.length < 6) {
+                                        errorMessage = "A senha deve ter pelo menos 6 caracteres."
+                                        return@Button
+                                    }
+                                    if (password != confirmPassword) {
+                                        errorMessage = "As senhas não conferem."
+                                        return@Button
+                                    }
+                                    isLoading = true
+                                    scope.launch {
+                                        try {
+                                            val user = authService.signUp(email.trim(), password)
+                                            if (user != null) {
+                                                // Cadastro + login imediato (confirmação de e-mail desligada)
+                                                onLogin(user)
+                                            } else {
+                                                // Cadastro criado, aguardando confirmação de e-mail
+                                                infoMessage = "Acesso criado! Confirme pelo e-mail (se solicitado) e entre com sua senha."
+                                                isSignUpMode = false
+                                                confirmPassword = ""
+                                            }
+                                        } catch (e: Exception) {
+                                            errorMessage = e.message ?: "Não foi possível criar o acesso."
+                                        } finally {
+                                            isLoading = false
                                         }
-                                        val user = authService.login(email, password)
-                                        if (user != null) {
-                                            onLogin(user)
-                                        } else {
-                                            errorMessage = "E-mail ou senha incorretos."
+                                    }
+                                } else {
+                                    // ---- LOGIN ----
+                                    isLoading = true
+                                    scope.launch {
+                                        try {
+                                            LocalStorage.putBoolean("rememberMe", rememberMe)
+                                            if (rememberMe) {
+                                                LocalStorage.putString("savedEmail", email)
+                                                LocalStorage.putString("savedPassword", password)
+                                            } else {
+                                                LocalStorage.putString("savedEmail", "")
+                                                LocalStorage.putString("savedPassword", "")
+                                            }
+                                            val user = authService.login(email, password)
+                                            if (user != null) {
+                                                onLogin(user)
+                                            } else {
+                                                errorMessage = "E-mail ou senha incorretos."
+                                            }
+                                        } catch (e: Exception) {
+                                            errorMessage = e.message ?: "Erro ao realizar login."
+                                        } finally {
+                                            isLoading = false
                                         }
-                                    } catch (e: Exception) {
-                                        errorMessage = e.message ?: "Erro ao realizar login."
-                                    } finally {
-                                        isLoading = false
                                     }
                                 }
                             },
@@ -638,7 +740,8 @@ fun LoginScreen(onLogin: (User) -> Unit) {
                                 .fillMaxWidth()
                                 .height(56.dp),
                             shape = RoundedCornerShape(14.dp),
-                            enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
+                            enabled = !isLoading && email.isNotBlank() && password.isNotBlank() &&
+                                (!isSignUpMode || confirmPassword.isNotBlank()),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = Color.White,
@@ -650,13 +753,32 @@ fun LoginScreen(onLogin: (User) -> Unit) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                             } else {
                                 Text(
-                                    "ENTRAR",
+                                    if (isSignUpMode) "CRIAR MEU ACESSO" else "ENTRAR",
                                     fontWeight = FontWeight.ExtraBold,
                                     style = MaterialTheme.typography.titleMedium,
                                     letterSpacing = 2.sp
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Link de alternância: Primeiro acesso <-> Já tenho conta
+                        Text(
+                            text = if (isSignUpMode) "Já tenho conta? Entrar" else "Primeiro acesso? Criar meu login",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    isSignUpMode = !isSignUpMode
+                                    errorMessage = null
+                                    infoMessage = null
+                                    confirmPassword = ""
+                                }
+                                .padding(8.dp)
+                        )
 
                         AnimatedVisibility(
                             visible = isLoading,
