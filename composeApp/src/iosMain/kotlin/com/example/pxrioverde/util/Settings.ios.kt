@@ -28,7 +28,7 @@ actual object LocalStorage {
     actual fun clear() {
         val dictionary = userDefaults.dictionaryRepresentation()
         dictionary.keys.forEach { key ->
-            userDefaults.removeObjectForKey(key as String)
+            (key as? String)?.let { userDefaults.removeObjectForKey(it) }
         }
         userDefaults.synchronize()
     }
