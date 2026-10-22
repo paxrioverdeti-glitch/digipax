@@ -2,8 +2,9 @@ package com.example.pxrioverde
 
 import androidx.compose.ui.window.ComposeUIViewController
 import com.example.pxrioverde.di.initKoin
+import platform.UIKit.UIViewController
 
-fun MainViewController() = ComposeUIViewController {
+fun MainViewController(): UIViewController {
     initKoin()
-    App()
+    return ComposeUIViewController { App() }
 }
