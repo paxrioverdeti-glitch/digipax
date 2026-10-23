@@ -16,7 +16,5 @@
 	<string>Necessário para salvar fotos de vistorias no dispositivo.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Necessário para registrar a localização do veículo nas viagens.</string>
-	<key>UILaunchScreen</key>
-	<dict/>
 </dict>
 </plist>
