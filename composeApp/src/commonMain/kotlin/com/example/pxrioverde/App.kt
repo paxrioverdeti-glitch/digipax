@@ -104,21 +104,33 @@ import com.example.pxrioverde.viewmodel.AbsenceViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.compose.koinInject
 import io.kamel.image.config.LocalKamelConfig
+import io.ktor.client.HttpClient
+import com.example.pxrioverde.service.getHttpEngine
 
 @Composable
 fun App() {
     setSingletonImageLoaderFactory { context ->
-        ImageLoader.Builder(context)
-            .components {
-                add(KtorNetworkFetcherFactory())
-            }
-            .build()
+        try {
+            ImageLoader.Builder(context)
+                .components {
+                    add(KtorNetworkFetcherFactory(httpClient = { HttpClient(getHttpEngine()) }))
+                }
+                .build()
+        } catch (e: Throwable) {
+            println("Coil ImageLoader build error: ${e.message}")
+            ImageLoader.Builder(context).build()
+        }
     }
 
     val kamelConfig = remember {
-        KamelConfig {
-            takeFrom(KamelConfig.Default)
-            imageBitmapDecoder()
+        try {
+            KamelConfig {
+                takeFrom(KamelConfig.Default)
+                imageBitmapDecoder()
+            }
+        } catch (e: Throwable) {
+            println("KamelConfig init error: ${e.message}")
+            KamelConfig.Default
         }
     }
 

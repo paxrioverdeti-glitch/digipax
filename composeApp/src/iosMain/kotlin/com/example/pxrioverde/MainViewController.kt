@@ -5,6 +5,11 @@ import com.example.pxrioverde.di.initKoin
 import platform.UIKit.UIViewController
 
 fun MainViewController(): UIViewController {
-    initKoin()
+    try {
+        initKoin()
+    } catch (e: Throwable) {
+        println("CRITICAL: Error in initKoin: ${e.message}")
+    }
+
     return ComposeUIViewController { App() }
 }
