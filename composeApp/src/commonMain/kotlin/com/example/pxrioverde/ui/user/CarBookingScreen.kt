@@ -160,7 +160,7 @@ fun CarBookingScreen(
     var vehicleExpanded by remember { mutableStateOf(false) }
     var deptExpanded by remember { mutableStateOf(false) }
 
-    val departments = listOf("T.I", "Financeiro", "Comercial", "Vendas", "DP", "Compras","Recepção","Bancário","Cobrança","Manutenção","Recuperação","Convênios","Marketing","Telemarketing","Med Saúde")
+    val departments = listOf("T.I", "Financeiro", "Comercial", "Vendas", "DP", "Compras", "Recepção", "Bancário", "Cobrança", "Manutenção", "Recuperação", "Convênios", "Marketing", "Telemarketing", "Med Saúde", "Portaria")
 
     val capturedPhotos by viewModel.capturedPhotos.collectAsState()
 
