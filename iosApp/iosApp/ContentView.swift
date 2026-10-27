@@ -11,40 +11,22 @@ struct ComposeView: UIViewControllerRepresentable {
 }
 
 struct ContentView: View {
-    @State private var showCompose = false
+    @State private var isReady = false
 
     var body: some View {
-        if showCompose {
-            ComposeView()
-                .ignoresSafeArea()
-        } else {
-            VStack(spacing: 24) {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 64))
-                    .foregroundColor(.green)
-
-                Text("DigiPax iOS")
-                    .font(.title)
-                    .bold()
-
-                Text("Versão 2.0.9 (Build 11)")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-
-                Button(action: {
-                    showCompose = true
-                }) {
-                    Text("Entrar no Aplicativo")
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.green)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal, 40)
+        Group {
+            if isReady {
+                ComposeView()
+                    .ignoresSafeArea()
+            } else {
+                Color.white
+                    .ignoresSafeArea()
+                    .onAppear {
+                        DispatchQueue.main.async {
+                            isReady = true
+                        }
+                    }
             }
-            .padding()
         }
     }
 }
