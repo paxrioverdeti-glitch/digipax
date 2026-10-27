@@ -133,7 +133,7 @@ class NotificationService(private val notificationManager: NotificationManager? 
                         }.collect { action ->
                             try {
                                 val absence = action.decodeRecord<RealtimeAbsenceRow>()
-                                if (absence.targetApproverId == user.id || absence.targetApproverId == null || user.role == UserRole.SUPERVISOR || user.role == UserRole.ENCARREGADO || user.role == UserRole.ADMIN) {
+                                if (absence.targetApproverId == user.id || absence.targetApproverId.isNullOrBlank() || user.role == UserRole.ADMIN) {
                                     val title = "Nova Solicitação de Ausência"
                                     val name = if (absence.userName.isNotBlank()) absence.userName else "Um colaborador"
                                     val text = "$name enviou um comunicado de ${absence.type.label}."

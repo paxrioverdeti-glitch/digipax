@@ -108,8 +108,7 @@ class AbsenceRepository(
 
             list.filter { item ->
                 item.targetApproverId == approverId ||
-                item.targetApproverId == null ||
-                item.targetApproverId == "af5749ac-522d-44fa-8ec5-8f31e6cdc416" && approverId.isNotBlank() // Fallback Max
+                item.targetApproverId.isNullOrBlank()
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -27,45 +27,47 @@ expect fun getHttpEngine(): HttpClientEngine
 /**
  * Configuração otimizada do Cliente Supabase.
  */
-val supabase = createSupabaseClient(
-    supabaseUrl = "https://yfkpqeeoticvajgitkrw.supabase.co",
-    supabaseKey = "sb_publishable_TZWG8dXcxpUty4steup3jQ_UfQeYqr4"
-) {
-    httpEngine = getHttpEngine()
-    requestTimeout = 120.seconds
+val supabase by lazy {
+    createSupabaseClient(
+        supabaseUrl = "https://yfkpqeeoticvajgitkrw.supabase.co",
+        supabaseKey = "sb_publishable_TZWG8dXcxpUty4steup3jQ_UfQeYqr4"
+    ) {
+        httpEngine = getHttpEngine()
+        requestTimeout = 120.seconds
 
-    @OptIn(SupabaseInternal::class)
-    httpConfig {
-        install(WebSockets)
-        install(HttpRequestRetry) {
-            maxRetries = 3
-            retryIf { _, response -> !response.status.isSuccess() }
-            retryOnExceptionIf { _, cause ->
-                cause is ConnectTimeoutException || cause.message?.contains("host") == true
+        @OptIn(SupabaseInternal::class)
+        httpConfig {
+            install(WebSockets)
+            install(HttpRequestRetry) {
+                maxRetries = 3
+                retryIf { _, response -> !response.status.isSuccess() }
+                retryOnExceptionIf { _, cause ->
+                    cause is ConnectTimeoutException || cause.message?.contains("host") == true
+                }
+                delayMillis { retry -> retry * 2000L }
             }
-            delayMillis { retry -> retry * 2000L }
         }
-    }
-    
-    // Otimização do Serializador JSON global
-    val optimizedJson = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-        useAlternativeNames = false // Melhora performance de parsing
-        coerceInputValues = true
-    }
+        
+        // Otimização do Serializador JSON global
+        val optimizedJson = Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+            useAlternativeNames = false // Melhora performance de parsing
+            coerceInputValues = true
+        }
 
-    install(Postgrest)
-    install(Realtime) {
-        heartbeatInterval = 15.seconds
+        install(Postgrest)
+        install(Realtime) {
+            heartbeatInterval = 15.seconds
+        }
+        install(Auth) {
+            sessionManager = LocalStorageSessionManager(optimizedJson)
+            autoLoadFromStorage = true
+            autoSaveToStorage = true
+            alwaysAutoRefresh = true
+        }
+        install(Storage)
     }
-    install(Auth) {
-        sessionManager = LocalStorageSessionManager(optimizedJson)
-        autoLoadFromStorage = true
-        autoSaveToStorage = true
-        alwaysAutoRefresh = true
-    }
-    install(Storage)
 }
 
 /**
