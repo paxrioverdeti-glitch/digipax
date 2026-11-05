@@ -364,6 +364,7 @@ fun AuthenticatedAppContent(
 
 @Composable
 fun LoginScreen(onLogin: (User) -> Unit) {
+    com.example.pxrioverde.util.bootTrace("LoginScreen: montando (fundo seguro no iOS)")
     val authService: AuthService = koinInject()
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
@@ -394,13 +395,28 @@ fun LoginScreen(onLogin: (User) -> Unit) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Camada 1: Background Estático Fullscreen
-        Image(
-            painter = painterResource(Res.drawable.logo_login),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
+        // Camada 1: Background Estático Fullscreen.
+        // No iOS, carregar a imagem logo_login via painterResource estava lançando
+        // exceção no primeiro desenho (crash SIGABRT em layoutSublayers). Por isso
+        // no iPhone usamos um gradiente sólido do tema; Android/Desktop seguem com a imagem.
+        if (isIOS()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color(0xFF1B4332), Color(0xFF2D6A4F))
+                        )
+                    )
+            )
+        } else {
+            Image(
+                painter = painterResource(Res.drawable.logo_login),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
 
         // Camada 2: Conteúdo Inicial (Botão + Atalhos)
         AnimatedVisibility(
