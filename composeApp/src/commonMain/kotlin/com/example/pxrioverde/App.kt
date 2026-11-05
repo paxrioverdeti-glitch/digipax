@@ -156,6 +156,44 @@ fun MainAppContent(initialUser: User? = null) {
 
     val mainViewModel: MainViewModel = koinViewModel()
     val adminViewModel: AdminViewModel = koinViewModel()
+
+    // Sincroniza o usuário local em mudanças de sessão
+    LaunchedEffect(sessionStatus) {
+        if (sessionStatus is SessionStatus.Authenticated) {
+            val user = authService.getCurrentUser()
+            if (user != null) {
+                currentUser = user
+            }
+        } else if (sessionStatus is SessionStatus.NotAuthenticated) {
+            currentUser = null
+            mainViewModel.clearData()
+            adminViewModel.clearData()
+        }
+    }
+
+    if (currentUser == null) {
+        LoginScreen(onLogin = { user -> 
+            currentUser = user
+        })
+    } else {
+        AuthenticatedAppContent(
+            currentUser = currentUser!!,
+            authService = authService,
+            mainViewModel = mainViewModel,
+            adminViewModel = adminViewModel,
+            onLogoutState = { currentUser = null }
+        )
+    }
+}
+
+@Composable
+fun AuthenticatedAppContent(
+    currentUser: User,
+    authService: AuthService,
+    mainViewModel: MainViewModel,
+    adminViewModel: AdminViewModel,
+    onLogoutState: () -> Unit
+) {
     val currentTab by mainViewModel.currentTab.collectAsState()
     val currentScreen by mainViewModel.currentScreen.collectAsState()
     val userSector by mainViewModel.userSector.collectAsState()
@@ -164,7 +202,7 @@ fun MainAppContent(initialUser: User? = null) {
     val hapticService = rememberHapticService()
     val scope = rememberCoroutineScope()
     
-    // Injetando ViewModels via Koin
+    // Injetando ViewModels via Koin somente quando autenticado
     val ticketViewModel: TicketViewModel = koinViewModel()
     val tripViewModel: TripViewModel = koinViewModel()
     val analyticsViewModel: AnalyticsViewModel = koinViewModel()
@@ -174,163 +212,136 @@ fun MainAppContent(initialUser: User? = null) {
     val feedViewModel: FeedViewModel = koinViewModel()
     val notificationService: NotificationService = koinInject()
 
-    // Solicita permissão de notificação no celular/plataforma ao entrar no app
+    // Solicita permissão de notificação
     RequestNotificationPermission()
 
-    // Sincroniza o usuário local e recarrega dados em mudanças de sessão (incluindo refresh de token)
-    LaunchedEffect(sessionStatus) {
-        if (sessionStatus is SessionStatus.Authenticated) {
-            val user = authService.getCurrentUser()
-            if (user != null) {
-                currentUser = user
-                
-                // Inicia a observação contínua do banco de dados local
-                ticketViewModel.observeTickets()
-                
-                // Dispara o carregamento/recarga de dados
-                ticketViewModel.loadTickets(user.id)
-                tripViewModel.loadBookings(user.id)
-                notificationService.subscribeAll(user)
-            }
-        } else if (sessionStatus is SessionStatus.NotAuthenticated) {
-            currentUser = null
-            mainViewModel.clearData()
-            adminViewModel.clearData()
-        }
+    // Carregamento de dados para o usuário autenticado
+    LaunchedEffect(currentUser.id) {
+        ticketViewModel.observeTickets()
+        ticketViewModel.loadTickets(currentUser.id)
+        tripViewModel.loadBookings(currentUser.id)
+        notificationService.subscribeAll(currentUser)
     }
 
     CommonBackHandler(enabled = currentScreen != AppScreen.Main) {
         mainViewModel.goBack()
     }
 
-    if (currentUser == null) {
-        LoginScreen(onLogin = { user -> 
-            currentUser = user
-        })
-    } else {
-        AnimatedContent(
-            targetState = currentScreen,
-            transitionSpec = {
-                fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 0.92f, animationSpec = tween(400)) togetherWith
-                fadeOut(animationSpec = tween(300))
-            }
-        ) { targetScreen ->
-            when (targetScreen) {
-                is AppScreen.TicketCreate -> TicketCreateWrapper(
-                    user = currentUser!!,
-                    viewModel = ticketViewModel,
-                    onBack = { mainViewModel.goBack() },
-                    preselectedSector = targetScreen.preselectedSector,
-                    defaultSector = userSector,
-                    defaultComputer = machineName
-                )
-                is AppScreen.VehicleCheckOut -> {
-                    VehicleCheckOutWrapper(
-                        booking = targetScreen.booking,
-                        viewModel = tripViewModel,
-                        onBack = { mainViewModel.goBack() },
-                        onSuccess = { 
-                            mainViewModel.goBack()
-                            mainViewModel.setTab(0)
-                        }
-                    )
-                }
-                is AppScreen.CarBooking -> CarBookingScreenWrapper(
-                    user = currentUser!!,
+    AnimatedContent(
+        targetState = currentScreen,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 0.92f, animationSpec = tween(400)) togetherWith
+            fadeOut(animationSpec = tween(300))
+        }
+    ) { targetScreen ->
+        when (targetScreen) {
+            is AppScreen.TicketCreate -> TicketCreateWrapper(
+                user = currentUser,
+                viewModel = ticketViewModel,
+                onBack = { mainViewModel.goBack() },
+                preselectedSector = targetScreen.preselectedSector,
+                defaultSector = userSector,
+                defaultComputer = machineName
+            )
+            is AppScreen.VehicleCheckOut -> {
+                VehicleCheckOutWrapper(
+                    booking = targetScreen.booking,
                     viewModel = tripViewModel,
                     onBack = { mainViewModel.goBack() },
-                    defaultDepartment = userSector
-                )
-                is AppScreen.ComunicadoRH -> UserAbsencePortal(
-                    userId = currentUser!!.id,
-                    userName = currentUser!!.displayName,
-                    avatarUrl = currentUser!!.avatarUrl,
-                    sector = userSector,
-                    viewModel = absenceViewModel,
-                    notificationService = notificationService,
-                    onBack = { mainViewModel.goBack() }
-                )
-                is AppScreen.PurchaseRequest -> PurchaseRequestScreen(
-                    user = currentUser!!,
-                    sector = userSector,
-                    onSave = { request ->
-                        purchaseViewModel.submitRequest(request) {
-                            mainViewModel.goBack()
-                        }
-                    },
-                    onBack = { mainViewModel.goBack() },
-                    isUploading = purchaseViewModel.isUploading.collectAsState().value
-                )
-                is AppScreen.PurchaseHistory -> PurchaseHistoryScreen(
-                    userId = currentUser!!.id,
-                    viewModel = purchaseViewModel,
-                    onBack = { mainViewModel.goBack() }
-                )
-                is AppScreen.Mural -> MuralScreen(
-                    user = currentUser!!,
-                    viewModel = feedViewModel,
-                    onBack = { mainViewModel.goBack() }
-                )
-                else -> MainContainer(
-                    user = currentUser!!,
-                    currentTab = currentTab,
-                    onTabChange = { 
-                        mainViewModel.setTab(it)
-                        hapticService.success()
-                    },
-                    ticketViewModel = ticketViewModel,
-                    tripViewModel = tripViewModel,
-                    analyticsViewModel = analyticsViewModel,
-                    profileViewModel = profileViewModel,
-                    absenceViewModel = absenceViewModel,
-                    adminViewModel = adminViewModel,
-                    purchaseViewModel = purchaseViewModel,
-                    notificationService = notificationService,
-                    onNavigateToTicketCreate = { sector -> 
-                        mainViewModel.navigateTo(AppScreen.TicketCreate(sector))
-                    },
-                    onNavigateToCarBooking = { mainViewModel.navigateTo(AppScreen.CarBooking) },
-                    onNavigateToComunicadoRH = { mainViewModel.navigateTo(AppScreen.ComunicadoRH) },
-                    onNavigateToMural = { mainViewModel.navigateTo(AppScreen.Mural) },
-                    onNavigateToCheckOut = { booking ->
-                        mainViewModel.navigateTo(AppScreen.VehicleCheckOut(booking))
-                    },
-                    onNavigateToPurchaseRequest = { mainViewModel.navigateTo(AppScreen.PurchaseRequest) },
-                    onNavigateToPurchaseHistory = { mainViewModel.navigateTo(AppScreen.PurchaseHistory) },
-                    onLogout = {
-                        scope.launch {
-                            // 1. Logout no Supabase (limpa sessão)
-                            authService.logout()
-                            
-                            // 2. Limpa o banco de dados local (Room) através dos DAOs
-                            try {
-                                val db = getDatabase()
-                                db.ticketDao().clearAll()
-                                db.messageDao().clearAll()
-                                db.tripDao().clearAll()
-                            } catch (e: Exception) {
-                                println("Erro ao limpar banco: ${e.message}")
-                            }
-
-                            // 3. Reseta o estado dos ViewModels para não sobrar dados em memória
-                            ticketViewModel.clearData()
-                            tripViewModel.clearData()
-                            analyticsViewModel.clearData()
-                            profileViewModel.clearData()
-                            absenceViewModel.clearData()
-                            purchaseViewModel.clearData()
-                            mainViewModel.clearData()
-                            adminViewModel.clearData()
-
-                            // 4. Limpa preferências locais (configurações, cache de nomes, etc)
-                            LocalStorage.clear()
-                            
-                            // 5. Volta para tela de login
-                            currentUser = null
-                        }
+                    onSuccess = { 
+                        mainViewModel.goBack()
+                        mainViewModel.setTab(0)
                     }
                 )
             }
+            is AppScreen.CarBooking -> CarBookingScreenWrapper(
+                user = currentUser,
+                viewModel = tripViewModel,
+                onBack = { mainViewModel.goBack() },
+                defaultDepartment = userSector
+            )
+            is AppScreen.ComunicadoRH -> UserAbsencePortal(
+                userId = currentUser.id,
+                userName = currentUser.displayName,
+                avatarUrl = currentUser.avatarUrl,
+                sector = userSector,
+                viewModel = absenceViewModel,
+                notificationService = notificationService,
+                onBack = { mainViewModel.goBack() }
+            )
+            is AppScreen.PurchaseRequest -> PurchaseRequestScreen(
+                user = currentUser,
+                sector = userSector,
+                onSave = { request ->
+                    purchaseViewModel.submitRequest(request) {
+                        mainViewModel.goBack()
+                    }
+                },
+                onBack = { mainViewModel.goBack() },
+                isUploading = purchaseViewModel.isUploading.collectAsState().value
+            )
+            is AppScreen.PurchaseHistory -> PurchaseHistoryScreen(
+                userId = currentUser.id,
+                viewModel = purchaseViewModel,
+                onBack = { mainViewModel.goBack() }
+            )
+            is AppScreen.Mural -> MuralScreen(
+                user = currentUser,
+                viewModel = feedViewModel,
+                onBack = { mainViewModel.goBack() }
+            )
+            else -> MainContainer(
+                user = currentUser,
+                currentTab = currentTab,
+                onTabChange = { 
+                    mainViewModel.setTab(it)
+                    hapticService.success()
+                },
+                ticketViewModel = ticketViewModel,
+                tripViewModel = tripViewModel,
+                analyticsViewModel = analyticsViewModel,
+                profileViewModel = profileViewModel,
+                absenceViewModel = absenceViewModel,
+                adminViewModel = adminViewModel,
+                purchaseViewModel = purchaseViewModel,
+                notificationService = notificationService,
+                onNavigateToTicketCreate = { sector -> 
+                    mainViewModel.navigateTo(AppScreen.TicketCreate(sector))
+                },
+                onNavigateToCarBooking = { mainViewModel.navigateTo(AppScreen.CarBooking) },
+                onNavigateToComunicadoRH = { mainViewModel.navigateTo(AppScreen.ComunicadoRH) },
+                onNavigateToMural = { mainViewModel.navigateTo(AppScreen.Mural) },
+                onNavigateToCheckOut = { booking ->
+                    mainViewModel.navigateTo(AppScreen.VehicleCheckOut(booking))
+                },
+                onNavigateToPurchaseRequest = { mainViewModel.navigateTo(AppScreen.PurchaseRequest) },
+                onNavigateToPurchaseHistory = { mainViewModel.navigateTo(AppScreen.PurchaseHistory) },
+                onLogout = {
+                    scope.launch {
+                        authService.logout()
+                        try {
+                            val db = getDatabase()
+                            db.ticketDao().clearAll()
+                            db.messageDao().clearAll()
+                            db.tripDao().clearAll()
+                        } catch (e: Exception) {
+                            println("Erro ao limpar banco: ${e.message}")
+                        }
+
+                        ticketViewModel.clearData()
+                        tripViewModel.clearData()
+                        analyticsViewModel.clearData()
+                        profileViewModel.clearData()
+                        absenceViewModel.clearData()
+                        purchaseViewModel.clearData()
+                        mainViewModel.clearData()
+                        adminViewModel.clearData()
+
+                        LocalStorage.clear()
+                        onLogoutState()
+                    }
+                }
+            )
         }
     }
 }
