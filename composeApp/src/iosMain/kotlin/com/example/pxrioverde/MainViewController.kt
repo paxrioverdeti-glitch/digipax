@@ -49,6 +49,30 @@ object IosCrashReporter {
 }
 
 /**
+ * "Migalhas de pao" da inicializacao no iPhone.
+ *
+ * Vai guardando cada etapa da abertura do app. Se o app travar com tela branca,
+ * a ULTIMA etapa registrada aqui aponta exatamente onde ele parou. A tela de
+ * diagnostico mostra essa lista mesmo quando nao houve erro, para o usuario
+ * conseguir enviar um print do ponto do travamento.
+ */
+object IosBootTrace {
+    private val etapas = mutableListOf<String>()
+
+    fun passo(etapa: String) {
+        // Evita encher a lista com a mesma etapa repetida (os Composables redesenham
+        // varias vezes). So registramos quando a etapa muda em relacao a ultima.
+        if (etapas.lastOrNull() == etapa) return
+        etapas.add(etapa)
+        println("DEBUG: [boot] $etapa")
+    }
+
+    fun texto(): String =
+        if (etapas.isEmpty()) "(nenhuma etapa registrada)"
+        else etapas.mapIndexed { i, e -> "${i + 1}. $e" }.joinToString("\n")
+}
+
+/**
  * Instala o gancho nativo do Kotlin/Native que e chamado ANTES do abort().
  * Em vez de o app morrer calado, guardamos o erro para a tela de diagnostico.
  */
@@ -70,13 +94,17 @@ fun SafeApp() {
     // capturado globalmente, com rolagem para caber na tela. Reavalia a cada
     // segundo para pegar um erro que ocorra logo apos a abertura.
     var runtimeError by remember { mutableStateOf(IosCrashReporter.lastError) }
+    var trace by remember { mutableStateOf(IosBootTrace.texto()) }
 
     LaunchedEffect(Unit) {
-        repeat(10) {
-            delay(1000)
+        repeat(20) {
+            delay(500)
+            // Atualiza o erro e as migalhas durante os primeiros 10 segundos,
+            // para capturar uma falha que ocorra logo apos a abertura.
             if (runtimeError == null && IosCrashReporter.lastError != null) {
                 runtimeError = IosCrashReporter.lastError
             }
+            trace = IosBootTrace.texto()
         }
     }
 
@@ -94,6 +122,11 @@ fun SafeApp() {
                     fontSize = 20.sp
                 )
                 Text(
+                    text = "\nEtapas que rodaram antes da falha:\n$trace",
+                    color = Color(0xFF444444),
+                    fontSize = 12.sp
+                )
+                Text(
                     text = "\nEnvie um print desta tela ao suporte:\n\n$errorToShow",
                     color = Color.Red,
                     fontSize = 13.sp
@@ -106,11 +139,16 @@ fun SafeApp() {
 }
 
 fun MainViewController(): UIViewController {
+    IosBootTrace.passo("MainViewController chamado")
     installCrashHook()
+    IosBootTrace.passo("Hook de excecao instalado")
     try {
         initKoin()
+        IosBootTrace.passo("initKoin concluido (erro Koin: ${koinInitError ?: "nenhum"})")
     } catch (e: Throwable) {
+        IosBootTrace.passo("initKoin LANCOU excecao")
         IosCrashReporter.record(e)
     }
+    IosBootTrace.passo("Criando ComposeUIViewController")
     return ComposeUIViewController { SafeApp() }
 }
