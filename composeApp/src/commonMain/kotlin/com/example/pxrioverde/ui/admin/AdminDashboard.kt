@@ -188,7 +188,8 @@ fun AdminDashboard(
                                             contentDescription = "Chamados"
                                         )
                                     },
-                                    label = { Text("Chamados") },
+                                    label = { Text("Chamados", maxLines = 1, softWrap = false, fontSize = 10.sp, overflow = androidx.compose.ui.text.style.TextOverflow.Clip) },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = Color(0xFF1B4332),
                                         selectedTextColor = Color(0xFF1B4332),
@@ -206,7 +207,8 @@ fun AdminDashboard(
                                             contentDescription = "Veículos"
                                         )
                                     },
-                                    label = { Text("Veículos") },
+                                    label = { Text("Veículos", maxLines = 1, softWrap = false, fontSize = 10.sp, overflow = androidx.compose.ui.text.style.TextOverflow.Clip) },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = Color(0xFF1B4332),
                                         selectedTextColor = Color(0xFF1B4332),
@@ -224,7 +226,8 @@ fun AdminDashboard(
                                             contentDescription = "Métricas"
                                         )
                                     },
-                                    label = { Text("Métricas") },
+                                    label = { Text("Métricas", maxLines = 1, softWrap = false, fontSize = 10.sp, overflow = androidx.compose.ui.text.style.TextOverflow.Clip) },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = Color(0xFF1B4332),
                                         selectedTextColor = Color(0xFF1B4332),
@@ -242,7 +245,8 @@ fun AdminDashboard(
                                             contentDescription = "Ausências"
                                         )
                                     },
-                                    label = { Text("DP") },
+                                    label = { Text("DP", maxLines = 1, softWrap = false, fontSize = 10.sp, overflow = androidx.compose.ui.text.style.TextOverflow.Clip) },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = Color(0xFF1B4332),
                                         selectedTextColor = Color(0xFF1B4332),
@@ -260,7 +264,8 @@ fun AdminDashboard(
                                             contentDescription = "Mural"
                                         )
                                     },
-                                    label = { Text("Mural") },
+                                    label = { Text("Mural", maxLines = 1, softWrap = false, fontSize = 10.sp, overflow = androidx.compose.ui.text.style.TextOverflow.Clip) },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = Color(0xFF1B4332),
                                         selectedTextColor = Color(0xFF1B4332),
@@ -278,7 +283,8 @@ fun AdminDashboard(
                                             contentDescription = "Avarias"
                                         )
                                     },
-                                    label = { Text("Avarias") },
+                                    label = { Text("Avarias", maxLines = 1, softWrap = false, fontSize = 10.sp, overflow = androidx.compose.ui.text.style.TextOverflow.Clip) },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = Color(0xFF1B4332),
                                         selectedTextColor = Color(0xFF1B4332),
@@ -296,7 +302,8 @@ fun AdminDashboard(
                                             contentDescription = "Convidar"
                                         )
                                     },
-                                    label = { Text("Convidar") },
+                                    label = { Text("Convidar", maxLines = 1, softWrap = false, fontSize = 10.sp, overflow = androidx.compose.ui.text.style.TextOverflow.Clip) },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = Color(0xFF1B4332),
                                         selectedTextColor = Color(0xFF1B4332),
@@ -637,7 +644,7 @@ fun CarManagementSection(refreshRequest: Int = 0, isDesktop: Boolean = false) {
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(
-                    painter = painterResource(Res.drawable.car),
+                    painter = rememberVectorPainter(CorporateIcons.Car),
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
@@ -655,7 +662,7 @@ fun CarManagementSection(refreshRequest: Int = 0, isDesktop: Boolean = false) {
             AdminEmptyState(
                 title = "Nenhum veículo",
                 description = "Sua frota está vazia.",
-                icon = painterResource(Res.drawable.car),
+                icon = rememberVectorPainter(CorporateIcons.Car),
                 actionLabel = "Adicionar Veículo",
                 onActionClick = { showAddDialog = true }
             )
@@ -725,7 +732,7 @@ fun CarCard(car: Car) {
                 modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(painter = painterResource(Res.drawable.car), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                Icon(painter = rememberVectorPainter(CorporateIcons.Car), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {

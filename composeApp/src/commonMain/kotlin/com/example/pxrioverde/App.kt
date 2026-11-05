@@ -448,7 +448,7 @@ fun LoginScreen(onLogin: (User) -> Unit) {
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    LoginShortcutItem("Frota", painterResource(Res.drawable.car))
+                    LoginShortcutItem("Frota", rememberVectorPainter(CorporateIcons.Car))
                     LoginShortcutItem("Chamados", rememberVectorPainter(CorporateIcons.Support))
                     LoginShortcutItem("Ausência", rememberVectorPainter(CorporateIcons.Calendar))
                 }
