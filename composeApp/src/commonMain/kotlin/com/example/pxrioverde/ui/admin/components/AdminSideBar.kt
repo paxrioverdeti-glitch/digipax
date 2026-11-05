@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -75,7 +76,7 @@ fun AdminSideBar(
             label = "Veículos",
             customIcon = {
                 Icon(
-                    painter = painterResource(Res.drawable.car),
+                    painter = rememberVectorPainter(CorporateIcons.Car),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )

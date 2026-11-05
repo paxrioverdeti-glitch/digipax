@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -66,7 +67,7 @@ fun SupportBottomNavigation(
     onItemSelected: (Int) -> Unit,
     userRole: com.example.pxrioverde.model.UserRole = com.example.pxrioverde.model.UserRole.CLIENT
 ) {
-    val carIcon = painterResource(Res.drawable.car)
+    val carIcon = rememberVectorPainter(CorporateIcons.Car)
     val items = remember(userRole, carIcon) {
         mutableListOf(
             BottomNavItem("Início", BottomNavIcon.Vector(CorporateIcons.Home), "home"),
@@ -598,7 +599,7 @@ fun NewTicketActionCard(
             ) {
                 // Opção Reservar
                 ActionButton(
-                    icon = painterResource(Res.drawable.car),
+                    icon = rememberVectorPainter(CorporateIcons.Car),
                     label = "Reservar",
                     onClick = onNavigateToCarBooking,
                     modifier = Modifier.weight(1f)

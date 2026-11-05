@@ -225,14 +225,30 @@ fun AdminAnalyticsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            SectionHeader("Gestão de Frotas", painterResource(Res.drawable.car))
+                            SectionHeader("Gestão de Frotas", rememberVectorPainter(CorporateIcons.Car))
                             IconButton(onClick = { viewModel.exportTripsReport() }) {
                                 Icon(CorporateIcons.Download, contentDescription = "Exportar CSV", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
                     item {
-                        val totalKmFiltered = filteredAppointments.sumOf { it.kmTraveled }
+                        // KM só existe em viagem FINALIZADA. Antes somava a aba aberta,
+                        // então na aba "Agendados" mostrava 0 km sem explicar.
+                        val finishedInFilter = remember(appointments, selectedMonth, selectedYear, selectedUser, selectedVehicle, selectedDate) {
+                            appointments.filter { a ->
+                                val userMatch = selectedUser == "Todos" || a.userName == selectedUser
+                                val vehicleMatch = selectedVehicle == "Todos" || a.vehicleName == selectedVehicle
+                                val dateMatch = if (selectedDate != null) a.date == selectedDate.toString() else {
+                                    val parts = a.date.split("-")
+                                    val yearOk = selectedYear == "Geral" || parts.firstOrNull() == selectedYear
+                                    val monthOk = selectedMonth == "Geral" ||
+                                        parts.getOrNull(1) == months.indexOf(selectedMonth).toString().padStart(2, '0')
+                                    yearOk && monthOk
+                                }
+                                a.isFinished && userMatch && vehicleMatch && dateMatch
+                            }
+                        }
+                        val totalKmFiltered = finishedInFilter.sumOf { it.kmTraveled }
                         val totalKmGeneral = state.data.kmMetrics.sumOf { it.totalKm }
 
                         if (isWide) {
@@ -241,14 +257,14 @@ fun AdminAnalyticsScreen(
                                     title = "KM Filtrado",
                                     value = totalKmFiltered.toString(),
                                     unit = "km",
-                                    icon = painterResource(Res.drawable.car),
+                                    icon = rememberVectorPainter(CorporateIcons.Car),
                                     modifier = Modifier.weight(1f)
                                 )
                                 AdminMetricCard(
                                     title = "KM Total Geral",
                                     value = totalKmGeneral.toInt().toString(),
                                     unit = "km",
-                                    icon = painterResource(Res.drawable.car),
+                                    icon = rememberVectorPainter(CorporateIcons.Car),
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -258,18 +274,26 @@ fun AdminAnalyticsScreen(
                                     title = "KM Filtrado",
                                     value = totalKmFiltered.toString(),
                                     unit = "km",
-                                    icon = painterResource(Res.drawable.car),
+                                    icon = rememberVectorPainter(CorporateIcons.Car),
                                     modifier = Modifier.weight(1f)
                                 )
                                 AdminMetricCard(
                                     title = "KM Total Geral",
                                     value = totalKmGeneral.toInt().toString(),
                                     unit = "km",
-                                    icon = painterResource(Res.drawable.car),
+                                    icon = rememberVectorPainter(CorporateIcons.Car),
                                     modifier = Modifier.weight(1f)
                                 )
                             }
                         }
+                    }
+                    item {
+                        Text(
+                            text = "KM Filtrado: soma das viagens finalizadas no filtro escolhido (mês, ano, usuário, veículo, data). " +
+                                "KM Total Geral: todas as viagens já registradas. Se o filtrado der 0, não há viagem finalizada nesse filtro.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     item { KmUsageChart(state.data.kmMetrics) }
 
