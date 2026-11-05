@@ -10,4 +10,6 @@ actual fun getPlatform(): Platform = DesktopPlatform()
 
 actual fun getCurrentTimestamp(): Long = System.currentTimeMillis()
 
+actual fun isIOS(): Boolean = false
+
 actual fun generateUUID(): String = UUID.randomUUID().toString()

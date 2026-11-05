@@ -13,3 +13,5 @@ actual fun getPlatform(): Platform = IOSPlatform()
 actual fun getCurrentTimestamp(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
 
 actual fun generateUUID(): String = platform.Foundation.NSUUID.UUID().UUIDString()
+
+actual fun isIOS(): Boolean = true
