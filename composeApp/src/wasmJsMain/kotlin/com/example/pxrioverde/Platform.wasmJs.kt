@@ -9,3 +9,6 @@ class WasmPlatform: Platform {
 actual fun getPlatform(): Platform = WasmPlatform()
 
 actual fun getCurrentTimestamp(): Long = Date.now().toLong()
+
+
+actual fun isIOS(): Boolean = false

@@ -137,7 +137,10 @@ fun App() {
 
     CompositionLocalProvider(LocalKamelConfig provides kamelConfig) {
         PxrioverdeTheme {
-            var showSplash by remember { mutableStateOf(true) }
+            // No iPhone a splash (LottieAnimation vazio + delay 3s) ficava presa
+            // numa tela branca, travando a abertura. No iOS pulamos a splash e vamos
+            // direto ao conteudo. No Android/Desktop a splash continua igual.
+            var showSplash by remember { mutableStateOf(!isIOS()) }
             var initialUser by remember { mutableStateOf<User?>(null) }
 
             if (showSplash) {

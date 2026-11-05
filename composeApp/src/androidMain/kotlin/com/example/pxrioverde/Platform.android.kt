@@ -10,4 +10,6 @@ actual fun getPlatform(): Platform = AndroidPlatform()
 
 actual fun getCurrentTimestamp(): Long = System.currentTimeMillis()
 
+actual fun isIOS(): Boolean = false
+
 actual fun generateUUID(): String = java.util.UUID.randomUUID().toString()

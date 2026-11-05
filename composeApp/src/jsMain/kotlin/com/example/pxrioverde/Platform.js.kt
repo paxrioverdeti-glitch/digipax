@@ -9,3 +9,6 @@ class JsPlatform: Platform {
 actual fun getPlatform(): Platform = JsPlatform()
 
 actual fun getCurrentTimestamp(): Long = Date.now().toLong()
+
+
+actual fun isIOS(): Boolean = false
