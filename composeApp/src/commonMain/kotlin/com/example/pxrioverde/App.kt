@@ -109,6 +109,7 @@ import com.example.pxrioverde.service.getHttpEngine
 
 @Composable
 fun App() {
+    com.example.pxrioverde.util.bootTrace("App() iniciou")
     setSingletonImageLoaderFactory { context ->
         try {
             ImageLoader.Builder(context)
@@ -140,8 +141,10 @@ fun App() {
             var initialUser by remember { mutableStateOf<User?>(null) }
 
             if (showSplash) {
+                com.example.pxrioverde.util.bootTrace("Mostrando splash")
                 AnimatedSplashScreen(onAnimationFinished = { showSplash = false })
             } else {
+                com.example.pxrioverde.util.bootTrace("Splash terminou, montando MainAppContent")
                 MainAppContent(initialUser = initialUser)
             }
         }
@@ -150,12 +153,16 @@ fun App() {
 
 @Composable
 fun MainAppContent(initialUser: User? = null) {
+    com.example.pxrioverde.util.bootTrace("MainAppContent: injetando AuthService")
     val authService: AuthService = koinInject()
+    com.example.pxrioverde.util.bootTrace("MainAppContent: lendo sessionStatus (cria cliente Supabase)")
     val sessionStatus by authService.sessionStatus.collectAsState()
     var currentUser by remember { mutableStateOf<User?>(initialUser) }
 
+    com.example.pxrioverde.util.bootTrace("MainAppContent: injetando MainViewModel/AdminViewModel")
     val mainViewModel: MainViewModel = koinViewModel()
     val adminViewModel: AdminViewModel = koinViewModel()
+    com.example.pxrioverde.util.bootTrace("MainAppContent: ViewModels prontos")
 
     // Sincroniza o usuário local em mudanças de sessão
     LaunchedEffect(sessionStatus) {
@@ -172,10 +179,12 @@ fun MainAppContent(initialUser: User? = null) {
     }
 
     if (currentUser == null) {
+        com.example.pxrioverde.util.bootTrace("Montando LoginScreen (sem usuario)")
         LoginScreen(onLogin = { user -> 
             currentUser = user
         })
     } else {
+        com.example.pxrioverde.util.bootTrace("Montando AuthenticatedAppContent (com usuario)")
         AuthenticatedAppContent(
             currentUser = currentUser!!,
             authService = authService,
@@ -203,6 +212,7 @@ fun AuthenticatedAppContent(
     val scope = rememberCoroutineScope()
     
     // Injetando ViewModels via Koin somente quando autenticado
+    com.example.pxrioverde.util.bootTrace("Autenticado: injetando ViewModels")
     val ticketViewModel: TicketViewModel = koinViewModel()
     val tripViewModel: TripViewModel = koinViewModel()
     val analyticsViewModel: AnalyticsViewModel = koinViewModel()
@@ -211,16 +221,19 @@ fun AuthenticatedAppContent(
     val purchaseViewModel: PurchaseViewModel = koinViewModel()
     val feedViewModel: FeedViewModel = koinViewModel()
     val notificationService: NotificationService = koinInject()
+    com.example.pxrioverde.util.bootTrace("Autenticado: ViewModels e NotificationService prontos")
 
     // Solicita permissão de notificação
     RequestNotificationPermission()
 
     // Carregamento de dados para o usuário autenticado
     LaunchedEffect(currentUser.id) {
+        com.example.pxrioverde.util.bootTrace("Autenticado: carregando dados (tickets/viagens/notificacoes)")
         ticketViewModel.observeTickets()
         ticketViewModel.loadTickets(currentUser.id)
         tripViewModel.loadBookings(currentUser.id)
         notificationService.subscribeAll(currentUser)
+        com.example.pxrioverde.util.bootTrace("Autenticado: dados carregados")
     }
 
     CommonBackHandler(enabled = currentScreen != AppScreen.Main) {
