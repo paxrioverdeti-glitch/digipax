@@ -35,6 +35,10 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
+            // Em vez de encerrar o app (abort/SIGABRT) quando uma corrotina lanca
+            // excecao nao tratada, o runtime apenas chama o hook e segue. Isso deixa
+            // a tela de diagnostico (IosCrashReporter) aparecer em vez do crash calado.
+            binaryOption("unhandledExceptionHook", "report")
         }
     }
     
@@ -67,7 +71,6 @@ kotlin {
                 implementation(libs.coil.compose)
                 implementation(libs.coil.network.ktor)
                 implementation(libs.kotlinx.serialization.json)
-                implementation(libs.generativeai)
 
                 implementation(libs.kotlinx.datetime)
 
@@ -94,6 +97,11 @@ kotlin {
                 implementation(libs.androidx.core.splashscreen)
                 implementation(libs.lottie.compose)
                 implementation(libs.kotlinx.datetime)
+                // Biblioteca exclusiva de Android (nao suporta iOS). Mantida apenas aqui
+                // para nao ser empacotada no framework iOS, onde causava abort na carga.
+                // Observacao: o GeminiInspectionService hoje usa REST puro e nao importa
+                // mais esta lib; ela fica aqui so por seguranca ate confirmar a remocao.
+                implementation(libs.generativeai)
             }
         }
 
