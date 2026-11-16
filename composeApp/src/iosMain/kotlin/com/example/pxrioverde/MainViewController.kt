@@ -19,7 +19,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import com.example.pxrioverde.ui.platform.iosDismissKeyboardOnTapOutside
+import com.example.pxrioverde.ui.platform.iosEdgeSwipeBack
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.ComposeUIViewController
 import com.example.pxrioverde.di.initKoin
@@ -187,7 +191,17 @@ fun SafeApp() {
             }
         }
     } else {
-        App()
+        // Raiz do app no iPhone: gesto de voltar pela borda e teclado que fecha ao tocar fora.
+        val focusManager = LocalFocusManager.current
+        val haptic = LocalHapticFeedback.current
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .iosEdgeSwipeBack(haptic)
+                .iosDismissKeyboardOnTapOutside(focusManager)
+        ) {
+            App()
+        }
     }
 }
 

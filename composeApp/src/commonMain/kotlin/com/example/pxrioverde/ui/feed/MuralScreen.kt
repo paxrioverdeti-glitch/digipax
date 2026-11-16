@@ -1,5 +1,6 @@
 package com.example.pxrioverde.ui.feed
 
+import com.example.pxrioverde.util.dismissKeyboardOnTapIos
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -863,6 +864,7 @@ fun CreateFeedPostDialog(
     var imageFileName by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
+        modifier = Modifier.dismissKeyboardOnTapIos(),
         onDismissRequest = { if (!isUploading) onDismiss() },
         title = { Text("Novo Comunicado ou Evento", fontWeight = FontWeight.Bold) },
         text = {
@@ -985,6 +987,7 @@ fun SubmitIdeaDialog(
     var categoryMenuExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
+        modifier = Modifier.dismissKeyboardOnTapIos(),
         onDismissRequest = { if (!isUploading) onDismiss() },
         title = { Text("Nova Sugestão / Ideia", fontWeight = FontWeight.Bold) },
         text = {
@@ -1070,6 +1073,7 @@ fun PublishIdeaDialog(
     var imageFileName by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
+        modifier = Modifier.dismissKeyboardOnTapIos(),
         onDismissRequest = { if (!isUploading) onDismiss() },
         title = { Text("Publicar ideia no Mural", fontWeight = FontWeight.Bold) },
         text = {

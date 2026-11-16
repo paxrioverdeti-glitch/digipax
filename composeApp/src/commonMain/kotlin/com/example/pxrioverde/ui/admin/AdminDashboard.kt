@@ -1,5 +1,6 @@
 package com.example.pxrioverde.ui.admin
 
+import com.example.pxrioverde.util.dismissKeyboardOnTapIos
 import androidx.compose.foundation.BorderStroke
 import com.example.pxrioverde.util.AdaptiveUtils
 import com.example.pxrioverde.util.WindowSizeClass
@@ -755,6 +756,7 @@ fun AddCarDialog(
     var plate by remember { mutableStateOf("") }
 
     AlertDialog(
+        modifier = Modifier.dismissKeyboardOnTapIos(),
         onDismissRequest = onDismiss,
         title = { Text("Novo Veículo", fontWeight = FontWeight.Bold) },
         text = {

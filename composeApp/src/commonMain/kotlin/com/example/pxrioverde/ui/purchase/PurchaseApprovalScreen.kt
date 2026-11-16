@@ -1,5 +1,6 @@
 package com.example.pxrioverde.ui.purchase
 
+import com.example.pxrioverde.util.dismissKeyboardOnTapIos
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -146,6 +147,7 @@ fun PurchaseEvaluationDialog(
     var selectedStatus by remember { mutableStateOf(PurchaseStatus.APROVADO) }
 
     AlertDialog(
+        modifier = Modifier.dismissKeyboardOnTapIos(),
         onDismissRequest = if (isUploading) ({}) else onDismiss,
         title = { Text("Avaliar Solicitação", fontWeight = FontWeight.Bold) },
         text = {
