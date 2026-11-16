@@ -1,5 +1,6 @@
 package com.example.pxrioverde.ui.hr
 
+import com.example.pxrioverde.util.dismissKeyboardOnTapIos
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -760,7 +761,7 @@ fun AdminEvaluationDialog(
     var selectedInstruction by remember { mutableStateOf(currentFeedback.instructions.firstOrNull()) }
 
     AlertDialog(
-        modifier = Modifier.imePadding().fillMaxWidth(0.95f),
+        modifier = Modifier.imePadding().fillMaxWidth(0.95f).dismissKeyboardOnTapIos(),
         onDismissRequest = onDismiss,
         title = { Text("Avaliação do Departamento Pessoal", fontWeight = FontWeight.Bold) },
         text = {
