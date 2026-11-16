@@ -164,6 +164,34 @@ fun CarBookingScreen(
 
     val capturedPhotos by viewModel.capturedPhotos.collectAsState()
 
+    // Agendamentos do veículo escolhido no dia escolhido (para evitar horário duplicado)
+    val todayDate = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date }
+    val dayToCheck = if (isEmergency) todayDate else startDate
+    val dayBookings = remember(allBookings, selectedCar, dayToCheck) {
+        val carId = selectedCar?.id
+        if (carId == null || dayToCheck == null) emptyList()
+        else allBookings.filter {
+            it.carId == carId && it.date == dayToCheck.toString() &&
+                !it.status.equals("cancelado", true) && !it.status.equals("finalizado", true)
+        }.sortedBy { it.scheduledStartTime }
+    }
+    fun toMinutes(hhmm: String?): Int? = hhmm?.split(":")?.let { p ->
+        val h = p.getOrNull(0)?.toIntOrNull(); val m = p.getOrNull(1)?.toIntOrNull() ?: 0
+        if (h == null) null else h * 60 + m
+    }
+    val myStart = if (isEmergency) null else startTime?.let { it.hour * 60 + it.minute }
+    val myEnd = if (isEmergency) null else if (startDate != null && startDate == endDate) endTime?.let { it.hour * 60 + it.minute } else 24 * 60
+    val conflictingBooking = if (isEmergency || myStart == null) null else dayBookings.firstOrNull { b ->
+        val s = toMinutes(b.scheduledStartTime) ?: 0
+        val e = toMinutes(b.scheduledEndTime) ?: 24 * 60
+        myStart < e && s < (myEnd ?: 24 * 60)
+    }
+
+    // Sempre que mudar o carro ou o dia, busca os agendamentos mais recentes do servidor
+    LaunchedEffect(selectedCar?.id, dayToCheck) {
+        if (selectedCar != null && dayToCheck != null) viewModel.loadAllBookings()
+    }
+
     val isFormComplete = if (isEmergency) {
         selectedCar != null && destination.isNotBlank() && selectedDepartment.isNotBlank() && initialKm.isNotBlank() &&
         capturedPhotos.all { it != null }
@@ -178,7 +206,8 @@ fun CarBookingScreen(
             }
         } else false
 
-        selectedCar != null && destination.isNotBlank() && selectedDepartment.isNotBlank() && isTimeValid
+        selectedCar != null && destination.isNotBlank() && selectedDepartment.isNotBlank() && isTimeValid &&
+            conflictingBooking == null
     }
 
     // Funções auxiliares para formatar na UI
@@ -312,11 +341,34 @@ fun CarBookingScreen(
                         shadowElevation = 8.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .padding(16.dp)
                                 .navigationBarsPadding()
                         ) {
+                            if (!isFormComplete) {
+                                val missing = buildList {
+                                    if (selectedCar == null) add("veículo")
+                                    if (destination.isBlank()) add("destino")
+                                    if (selectedDepartment.isBlank()) add("setor")
+                                    if (isEmergency) {
+                                        if (initialKm.isBlank()) add("KM inicial")
+                                        if (capturedPhotos.any { it == null }) add("fotos do veículo")
+                                    } else if (startDate == null || startTime == null || endDate == null || endTime == null) {
+                                        add("data e horário")
+                                    } else if (conflictingBooking != null) {
+                                        add("outro horário (este já está ocupado)")
+                                    } else {
+                                        add("horário de fim maior que o de início")
+                                    }
+                                }
+                                Text(
+                                    "Falta preencher: ${missing.joinToString(", ")}",
+                                    color = Color(0xFFB45309),
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                            }
                             Button(
                                 onClick = {
                                     focusManager.clearFocus()
@@ -325,7 +377,7 @@ fun CarBookingScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth().height(56.dp),
                                 shape = RoundedCornerShape(12.dp),
-                                enabled = isFormComplete,
+                                enabled = isFormComplete && !showOverlay,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isFormComplete) Color(0xFF2D6A4F) else Color.LightGray,
                                     contentColor = Color.White,
@@ -375,9 +427,6 @@ fun CarBookingScreen(
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
-                            }
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
                             }
                         }
 
@@ -479,31 +528,32 @@ fun CarBookingScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            color = Color(0xFFFFEBEE), 
+                            color = Color.White,
                             shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFCDD2))
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
                         ) {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Checkbox(
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "Agendamento emergencial",
+                                        color = Color(0xFF1B4332),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "A viagem começa agora: sem escolher data e hora, mas com KM inicial e fotos do veículo.",
+                                        color = Color.Gray,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Switch(
                                     checked = isEmergency,
                                     onCheckedChange = { isEmergency = it },
-                                    colors = CheckboxDefaults.colors(checkedColor = Color(0xFFD32F2F))
-                                )
-                                Icon(
-                                    imageVector = CorporateIcons.Alert,
-                                    contentDescription = null,
-                                    tint = Color(0xFFD32F2F),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "Agendamento Emergencial",
-                                    color = Color(0xFFD32F2F),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
+                                    colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFF2D6A4F))
                                 )
                             }
                         }
@@ -814,6 +864,58 @@ fun CarBookingScreen(
                         }
                     }
 
+                    // AGENDADOS DO DIA PARA O VEÍCULO ESCOLHIDO
+                    if (selectedCar != null && dayToCheck != null) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    "Agendados para ${selectedCar?.name} em ${formatDate(dayToCheck)}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1B4332)
+                                )
+                                if (dayBookings.isEmpty()) {
+                                    Text("Livre o dia todo.", color = Color(0xFF2D6A4F), style = MaterialTheme.typography.bodyMedium)
+                                } else {
+                                    dayBookings.forEach { b ->
+                                        val isConflict = b == conflictingBooking
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = if (isConflict) Color(0xFFFFEBEE) else Color(0xFFF5F7F6)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    "${b.scheduledStartTime} às ${b.scheduledEndTime ?: "--:--"}",
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isConflict) Color(0xFFC62828) else Color.DarkGray
+                                                )
+                                                Text(b.userName, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                                            }
+                                        }
+                                    }
+                                }
+                                if (conflictingBooking != null) {
+                                    Text(
+                                        "Seu horário bate com o de ${conflictingBooking.userName}. Escolha outro horário ou outro veículo.",
+                                        color = Color(0xFFC62828),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     if (isEmergency) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -891,7 +993,7 @@ fun CarBookingScreen(
                         onDismiss = onBack,
                         isEmergency = isEmergency
                     )
-                } else if (isUploading) {
+                } else {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
@@ -910,8 +1012,6 @@ fun CarBookingScreen(
                             color = Color(0xFF1B4332)
                         )
                     }
-                } else {
-                    LaunchedEffect(Unit) { showOverlay = false }
                 }
             }
         }
@@ -1023,9 +1123,11 @@ fun CustomVehicleDatePicker(
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = { onDateSelected(datePickerState.selectedDateMillis) },
-                colors = ButtonDefaults.textButtonColors(contentColor = brandGreen)
+                enabled = datePickerState.selectedDateMillis != null,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = brandGreen)
             ) { Text("OK", fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
@@ -1071,44 +1173,83 @@ fun CustomVehicleDatePicker(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Seletor de horário simples: o usuário toca a hora e depois os minutos.
+ * Começa VAZIO ("--:--") para nunca confundir meia-noite com "não escolhido".
+ */
 @Composable
 fun CustomVehicleTimePicker(
     onTimeSelected: (Int, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     val brandGreen = Color(0xFF1B5E20)
-    val timePickerState = rememberTimePickerState()
+    var hour by remember { mutableStateOf<Int?>(null) }
+    var minute by remember { mutableStateOf<Int?>(null) }
+    val isComplete = hour != null && minute != null
+
+    @Composable
+    fun TimeChip(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+        Surface(
+            onClick = onClick,
+            modifier = modifier.height(40.dp),
+            shape = RoundedCornerShape(10.dp),
+            color = if (selected) brandGreen else Color(0xFFF5F7F6),
+            contentColor = if (selected) Color.White else Color.DarkGray
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, fontSize = 15.sp)
+            }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = { onTimeSelected(timePickerState.hour, timePickerState.minute) }) {
-                Text("OK", color = brandGreen, fontWeight = FontWeight.Bold)
+        containerColor = Color.White,
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Text("Escolha o horário", style = MaterialTheme.typography.titleMedium, color = Color.Gray)
+                Text(
+                    "${hour?.toString()?.padStart(2, '0') ?: "--"}:${minute?.toString()?.padStart(2, '0') ?: "--"}",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isComplete) brandGreen else Color.LightGray
+                )
             }
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("1. Hora", fontWeight = FontWeight.Bold, color = Color(0xFF1B4332))
+                (0..23).chunked(6).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        row.forEach { h ->
+                            TimeChip(h.toString().padStart(2, '0'), hour == h, Modifier.weight(1f)) { hour = h }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Text("2. Minutos", fontWeight = FontWeight.Bold, color = Color(0xFF1B4332))
+                (0..55 step 5).chunked(6).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        row.forEach { m ->
+                            TimeChip(m.toString().padStart(2, '0'), minute == m, Modifier.weight(1f)) { minute = m }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onTimeSelected(hour!!, minute!!) },
+                enabled = isComplete,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = brandGreen)
+            ) { Text("OK", fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("CANCELAR", color = Color.Gray) }
-        },
-        text = {
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                TimePicker(
-                    state = timePickerState,
-                    colors = TimePickerDefaults.colors(
-                        clockDialColor = Color(0xFFF5F7F6),
-                        clockDialSelectedContentColor = Color.White,
-                        clockDialUnselectedContentColor = Color.DarkGray,
-                        selectorColor = brandGreen,
-                        containerColor = Color.White,
-                        periodSelectorSelectedContainerColor = brandGreen.copy(alpha = 0.2f),
-                        periodSelectorSelectedContentColor = brandGreen,
-                        timeSelectorSelectedContainerColor = brandGreen,
-                        timeSelectorSelectedContentColor = Color.White,
-                        timeSelectorUnselectedContainerColor = Color(0xFFF5F7F6),
-                        timeSelectorUnselectedContentColor = Color.DarkGray
-                    )
-                )
-            }
         }
     )
 }

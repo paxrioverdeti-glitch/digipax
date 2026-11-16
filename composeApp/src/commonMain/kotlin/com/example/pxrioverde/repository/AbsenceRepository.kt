@@ -5,6 +5,9 @@ import com.example.pxrioverde.model.AdminFeedback
 import com.example.pxrioverde.model.AbsenceType
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.realtime.*
@@ -114,6 +117,14 @@ class AbsenceRepository(
             e.printStackTrace()
             emptyList()
         }
+    }
+
+    /** Cancela o próprio comunicado (função segura no banco; só vale se ainda não foi avaliado). */
+    suspend fun cancelAbsence(absenceId: String) {
+        supabase.postgrest.rpc(
+            "cancel_absence",
+            buildJsonObject { put("p_id", absenceId) }
+        )
     }
 
     suspend fun updateFeedback(absenceId: String, feedback: AdminFeedback) {

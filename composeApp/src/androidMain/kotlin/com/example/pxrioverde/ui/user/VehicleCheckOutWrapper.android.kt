@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.pxrioverde.model.Booking
 import com.example.pxrioverde.util.compressTripPhoto
+import com.example.pxrioverde.util.TripPhotoRejectedException
+import com.example.pxrioverde.ui.components.PhotoGuideDialog
 import com.example.pxrioverde.viewmodel.TripViewModel
 import java.io.File
 
@@ -38,6 +40,9 @@ actual fun VehicleCheckOutWrapper(
         if (success && imageUri != null && currentPhotoIndex != -1) {
             try {
                 viewModel.setCapturedPhoto(currentPhotoIndex, compressTripPhoto(context, imageUri))
+            } catch (e: TripPhotoRejectedException) {
+                // Foto escura/tremida: avisa e não guarda, para o motorista tirar de novo
+                Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -52,6 +57,9 @@ actual fun VehicleCheckOutWrapper(
             // launchCamera() será chamado novamente pelo clique do usuário ou poderíamos auto-trigger
         }
     }
+
+    // Guia de enquadramento mostrado antes de abrir a câmera
+    var guideIndex by remember { mutableStateOf<Int?>(null) }
 
     fun launchCamera(index: Int) {
         currentPhotoIndex = index
@@ -77,13 +85,24 @@ actual fun VehicleCheckOutWrapper(
         }
     }
 
+    guideIndex?.let { index ->
+        PhotoGuideDialog(
+            photoIndex = index,
+            onOpenCamera = {
+                guideIndex = null
+                launchCamera(index)
+            },
+            onDismiss = { guideIndex = null }
+        )
+    }
+
     val isFinishing = booking.status == "EM_ANDAMENTO"
 
     VehicleCheckOutScreen(
         carName = "Veículo do Agendamento",
         capturedPhotos = capturedPhotos,
         isUploading = isUploading,
-        onTakePhoto = { index -> launchCamera(index) },
+        onTakePhoto = { index -> guideIndex = index },
         onSubmit = { km ->
             if (isFinishing) {
                 viewModel.finishBooking(booking, km) { success, inspectionError ->

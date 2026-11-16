@@ -1033,7 +1033,20 @@ fun AbsenceItemCard(absence: ComunicadoState, onClick: () -> Unit) {
                 }
             }
             
-            if (absence.adminFeedback != null) {
+            if (absence.isCancelled) {
+                Surface(
+                    color = Color(0xFFB91C1C).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        "CANCELADO",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFB91C1C),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else if (absence.adminFeedback != null) {
                 Icon(Icons.Default.CheckCircle, "Avaliado", tint = Color(0xFF2E7D32), modifier = Modifier.size(20.dp))
             } else {
                 Surface(

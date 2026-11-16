@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.window.Dialog
 import coil3.compose.AsyncImage
 import com.example.pxrioverde.model.DanoEncontradoDto
@@ -53,11 +54,12 @@ fun VehicleDamageReportsScreen(
     val onlyDamaged by viewModel.onlyDamagedFilter.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedImageModal by viewModel.selectedImageForModal.collectAsState()
+    val analyzingTripIds by viewModel.analyzingTripIds.collectAsState()
 
+    // Recarrega sempre que a aba é aberta (e quando o admin pede atualização),
+    // para mostrar as viagens que acabaram de ser finalizadas.
     LaunchedEffect(refreshRequest) {
-        if (refreshRequest > 0) {
-            viewModel.loadReports()
-        }
+        viewModel.loadReports()
     }
 
     // Filtra relatórios por busca textual (motorista, placa ou nome do carro)
@@ -75,9 +77,6 @@ fun VehicleDamageReportsScreen(
         }
     }
 
-    val totalDanosCount = remember(reports) {
-        reports.sumOf { it.danosEncontrados.size }
-    }
 
     Box(modifier = modifier.fillMaxSize().background(Color(0xFFF8FAFC))) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -88,7 +87,7 @@ fun VehicleDamageReportsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                     Text(
                         text = "Avarias & Vistorias de Lataria",
                         fontSize = 22.sp,
@@ -119,10 +118,20 @@ fun VehicleDamageReportsScreen(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Números com nome claro: o que é vistoria, o que é dano e o que precisa de olho humano
                 MetricSummaryCard(
                     modifier = Modifier.weight(1f),
-                    title = "Ocorrências de Dano",
+                    title = "Vistorias",
                     value = reports.size.toString(),
+                    icon = Icons.Outlined.DirectionsCar,
+                    iconColor = Color(0xFF3B82F6),
+                    backgroundColor = Color(0xFFEFF6FF)
+                )
+
+                MetricSummaryCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Com novo dano",
+                    value = reports.count { it.reviewStatus == "confirmado" || (it.reviewStatus == null && it.houveNovoDano) }.toString(),
                     icon = Icons.Outlined.Warning,
                     iconColor = Color(0xFFEF4444),
                     backgroundColor = Color(0xFFFEF2F2)
@@ -130,12 +139,82 @@ fun VehicleDamageReportsScreen(
 
                 MetricSummaryCard(
                     modifier = Modifier.weight(1f),
-                    title = "Avarias Mapeadas",
-                    value = totalDanosCount.toString(),
-                    icon = Icons.Outlined.DirectionsCar,
+                    title = "Para revisar",
+                    value = reports.count { it.reviewStatus == null && it.needsReview && !it.houveNovoDano }.toString(),
+                    icon = Icons.Outlined.Search,
                     iconColor = Color(0xFFF59E0B),
                     backgroundColor = Color(0xFFFFFBEB)
                 )
+            }
+
+            Text(
+                text = "Vistorias: viagens finalizadas com fotos. Com novo dano: a IA tem 60% ou mais de certeza. Para revisar: a IA não conseguiu analisar ou as fotos não servem.",
+                fontSize = 11.sp,
+                color = Color(0xFF64748B),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            val reviewError by viewModel.reviewError.collectAsState()
+            reviewError?.let { msg ->
+                Surface(
+                    color = Color(0xFFFEF2F2),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp)) {
+                        Text(msg, color = Color(0xFF991B1B), fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { viewModel.clearReviewError() }) { Text("OK") }
+                    }
+                }
+            }
+
+            // ANALISAR TODAS AS PENDENTES (uma por vez, com progresso e botão de parar)
+            val batchProgress by viewModel.batchProgress.collectAsState()
+            val pendingCount = reports.count { it.isAnalysisPending }
+            batchProgress?.let { (done, total) ->
+                Surface(
+                    color = Color(0xFFEFF6FF),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Analisando ${done + 1} de $total vistorias...",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E3A8A),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = { viewModel.stopBatch() }) { Text("Parar") }
+                        }
+                        LinearProgressIndicator(
+                            progress = { done.toFloat() / total },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF3B82F6)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Uma por vez, para não passar do limite do Gemini. Mantenha o app aberto.",
+                            fontSize = 11.sp,
+                            color = Color(0xFF475569)
+                        )
+                    }
+                }
+            } ?: run {
+                if (pendingCount > 0) {
+                    Button(
+                        onClick = { viewModel.analyzeAllPending() },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8))
+                    ) {
+                        Text(
+                            "Analisar todas as pendentes ($pendingCount)",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
 
             // BARRA DE PESQUISA
@@ -170,7 +249,7 @@ fun VehicleDamageReportsScreen(
                 FilterChip(
                     selected = onlyDamaged,
                     onClick = { viewModel.setOnlyDamagedFilter(true) },
-                    label = { Text("Apenas com Novo Dano") },
+                    label = { Text("Precisam de atenção") },
                     leadingIcon = if (onlyDamaged) {
                         { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                     } else null
@@ -238,9 +317,12 @@ fun VehicleDamageReportsScreen(
                     items(filteredReports, key = { it.id }) { report ->
                         VehicleDamageReportCard(
                             item = report,
-                            onImageClick = { title, url ->
-                                viewModel.openImageModal(title, url)
-                            }
+                            onImageClick = { title, url, danos ->
+                                viewModel.openImageModal(title, url, danos)
+                            },
+                            onReview = { status -> viewModel.reviewInspection(report.tripId, status) },
+                            isAnalyzing = report.tripId in analyzingTripIds,
+                            onAnalyzeNow = { viewModel.analyzeNow(report.tripId) }
                         )
                     }
                 }
@@ -248,7 +330,9 @@ fun VehicleDamageReportsScreen(
         }
 
         // DIÁLOGO MODAL PARA EXPANDIR FOTOS DE AUDITORIA
-        selectedImageModal?.let { (title, url) ->
+        selectedImageModal?.let { modal ->
+            val title = modal.title
+            val url = modal.url
             Dialog(onDismissRequest = { viewModel.closeImageModal() }) {
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -272,12 +356,20 @@ fun VehicleDamageReportsScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        AsyncImage(
-                            model = url,
+                        DamagePhoto(
+                            url = url,
+                            danos = modal.danos,
                             contentDescription = title,
-                            modifier = Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Fit
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
                         )
+                        if (modal.danos.any { it.caixa != null }) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                "Quadrado vermelho: dano provável. Amarelo: indício fraco. A posição é aproximada.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
                     }
                 }
             }
@@ -292,8 +384,18 @@ fun VehicleDamageReportsScreen(
 @Composable
 private fun VehicleDamageReportCard(
     item: VehicleDamageReportItem,
-    onImageClick: (title: String, url: String) -> Unit
+    onImageClick: (title: String, url: String, danos: List<DanoEncontradoDto>) -> Unit,
+    onReview: (status: String?) -> Unit,
+    isAnalyzing: Boolean = false,
+    onAnalyzeNow: () -> Unit = {}
 ) {
+    // A decisão do gestor vale mais que a da IA
+    val isDamage = when (item.reviewStatus) {
+        "confirmado" -> true
+        "falso_alarme" -> false
+        else -> item.houveNovoDano
+    }
+    val isPendingReview = item.reviewStatus == null && item.needsReview && !item.houveNovoDano
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -346,8 +448,22 @@ private fun VehicleDamageReportCard(
                     }
                 }
 
-                // BADGE DE STATUS DA VISTORIA
-                if (item.houveNovoDano) {
+                // BADGE DE STATUS DA VISTORIA (3 estados: dano / revisar / limpo)
+                if (isPendingReview) {
+                    Surface(
+                        color = Color(0xFFFFFBEB),
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, Color(0xFFFCD34D))
+                    ) {
+                        Text(
+                            text = "REVISAR FOTOS",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF92400E)
+                        )
+                    }
+                } else if (isDamage) {
                     Surface(
                         color = Color(0xFFFEF2F2),
                         shape = RoundedCornerShape(20.dp),
@@ -362,7 +478,7 @@ private fun VehicleDamageReportCard(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "NOVO DANO DETECTADO",
+                                text = if (item.reviewStatus == "confirmado") "AVARIA CONFIRMADA" else "NOVO DANO DETECTADO",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF991B1B)
@@ -375,7 +491,7 @@ private fun VehicleDamageReportCard(
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Text(
-                            text = "SEM NOVO DANO",
+                            text = if (item.reviewStatus == "falso_alarme") "FALSO ALARME" else "SEM NOVO DANO",
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -465,6 +581,68 @@ private fun VehicleDamageReportCard(
                 }
             }
 
+            // ANALISAR AGORA: vistoria que a IA ainda não analisou (ou falhou)
+            if (isAnalyzing) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Color(0xFF3B82F6)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Analisando com a IA... (pode levar até 1 minuto)",
+                        fontSize = 12.sp,
+                        color = Color(0xFF475569)
+                    )
+                }
+            } else if (item.isAnalysisPending) {
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onAnalyzeNow,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Analisar agora com a IA", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D4ED8))
+                }
+            }
+
+            // DECISÃO DO GESTOR (Passo 3)
+            Spacer(modifier = Modifier.height(14.dp))
+            if (item.reviewStatus == null) {
+                Text(
+                    text = "Sua avaliação:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF64748B)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { onReview("confirmado") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                    ) { Text("Confirmar avaria", fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+                    OutlinedButton(
+                        onClick = { onReview("falso_alarme") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) { Text("Falso alarme", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF166534)) }
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (item.reviewStatus == "confirmado") "Você confirmou esta avaria." else "Você marcou como falso alarme.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF475569),
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = { onReview(null) }) { Text("Desfazer", fontSize = 12.sp) }
+                }
+            }
+
             // ESPAÇO DA GALERIA DE FOTOS PARA AUDITORIA DO GESTOR
             val hasPhotos = item.initialPhotoUrls.isNotEmpty() || item.finalPhotoUrls.isNotEmpty()
             if (hasPhotos) {
@@ -482,7 +660,12 @@ private fun VehicleDamageReportCard(
                         PhotoGallerySection(
                             title = "Fotos Iniciais (Antes da Corrida)",
                             urls = item.initialPhotoUrls,
-                            onImageClick = { url -> onImageClick("Foto Inicial", url) }
+                            // Danos que já estavam no carro aparecem marcados na foto INICIAL desta viagem
+                            danosForIndex = { index ->
+                                if (item.reviewStatus == "falso_alarme") emptyList()
+                                else item.danosEncontrados.filter { it.isBetweenTrips && it.fotoIndex == index }
+                            },
+                            onImageClick = { url, danos -> onImageClick("Foto Inicial", url, danos) }
                         )
                     }
 
@@ -490,7 +673,12 @@ private fun VehicleDamageReportCard(
                         PhotoGallerySection(
                             title = "Fotos Finais (Depois da Corrida)",
                             urls = item.finalPhotoUrls,
-                            onImageClick = { url -> onImageClick("Foto Final", url) }
+                            // Só mostra quadrados se a IA apontou e o gestor não marcou falso alarme
+                            danosForIndex = { index ->
+                                if (item.reviewStatus == "falso_alarme") emptyList()
+                                else item.danosEncontrados.filter { !it.isBetweenTrips && it.fotoIndex == index }
+                            },
+                            onImageClick = { url, danos -> onImageClick("Foto Final", url, danos) }
                         )
                     }
                 }
@@ -537,12 +725,33 @@ private fun DanoItemCard(dano: DanoEncontradoDto) {
                         )
                     }
                 }
+                if (dano.isBetweenTrips) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Já estava no carro ao pegar (surgiu depois da viagem anterior)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF7C3AED)
+                    )
+                }
                 if (dano.descricao.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = dano.descricao,
                         fontSize = 12.sp,
                         color = Color(0xFF475569)
+                    )
+                }
+                dano.confianca?.let { conf ->
+                    val percent = (conf * 100).toInt()
+                    val isLikely = conf >= 0.6
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isLikely) "Certeza da IA: $percent%"
+                               else "Indício fraco ($percent%): pode ser reflexo, sujeira ou ângulo",
+                        fontSize = 11.sp,
+                        fontWeight = if (isLikely) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isLikely) Color(0xFF1B4332) else Color(0xFF94A3B8)
                     )
                 }
             }
@@ -572,22 +781,30 @@ private fun DanoItemCard(dano: DanoEncontradoDto) {
 private fun PhotoGallerySection(
     title: String,
     urls: List<String>,
-    onImageClick: (String) -> Unit
+    danosForIndex: (Int) -> List<DanoEncontradoDto> = { emptyList() },
+    onImageClick: (url: String, danos: List<DanoEncontradoDto>) -> Unit
 ) {
     Column {
         Text(title, fontSize = 11.sp, color = Color(0xFF64748B))
         Spacer(modifier = Modifier.height(4.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(urls) { url ->
-                AsyncImage(
-                    model = url,
+            itemsIndexed(urls) { index, url ->
+                val danos = danosForIndex(index)
+                val hasBox = danos.any { it.caixa != null }
+                DamagePhoto(
+                    url = url,
+                    danos = danos,
                     contentDescription = title,
+                    showLabels = false,
                     modifier = Modifier
-                        .size(68.dp)
+                        .height(68.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
-                        .clickable { onImageClick(url) },
-                    contentScale = ContentScale.Crop
+                        .border(
+                            if (hasBox) 2.dp else 1.dp,
+                            if (hasBox) Color(0xFFEF4444) else Color(0xFFCBD5E1),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .clickable { onImageClick(url, danos) }
                 )
             }
         }

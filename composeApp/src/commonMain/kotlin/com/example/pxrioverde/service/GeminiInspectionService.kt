@@ -2,6 +2,7 @@ package com.example.pxrioverde.service
 
 import com.example.pxrioverde.model.*
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -17,8 +18,15 @@ import kotlin.io.encoding.Base64
  * análise comparativa multimodal de vistorias de lataria de veículos de frota.
  */
 class GeminiInspectionService(
-    private val httpClient: HttpClient = HttpClient(getHttpEngine()),
-    private val apiKey: String = DEFAULT_API_KEY,
+    // A IA leva de 20 a 60 s para comparar 8 fotos; o padrão de ~10 s cortava a resposta.
+    private val httpClient: HttpClient = HttpClient(getHttpEngine()) {
+        install(HttpTimeout) {
+            requestTimeoutMillis = 120_000
+            socketTimeoutMillis = 120_000
+            connectTimeoutMillis = 20_000
+        }
+    },
+    private val apiKey: String = geminiApiKey(),
     private val modelName: String = DEFAULT_MODEL
 ) {
 

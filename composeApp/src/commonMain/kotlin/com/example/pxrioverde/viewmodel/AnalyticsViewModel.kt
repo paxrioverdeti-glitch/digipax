@@ -37,11 +37,24 @@ class AnalyticsViewModel(
         loadData()
     }
 
+    private var bookingYear: Int? = null
+    private var bookingMonth: Int? = null
+
+    /** Período dos agendamentos mostrados nas Métricas (null = sem filtro). */
+    fun setBookingPeriod(year: Int?, month: Int?) {
+        if (year == bookingYear && month == bookingMonth && _uiState.value is AnalyticsUiState.Success) return
+        bookingYear = year
+        bookingMonth = month
+        loadData()
+    }
+
     fun loadData() {
         viewModelScope.launch {
             _uiState.value = AnalyticsUiState.Loading
             try {
-                val data = getAnalyticsDashboardUseCase(_selectedMonth.value, _selectedYear.value)
+                val data = getAnalyticsDashboardUseCase(
+                    _selectedMonth.value, _selectedYear.value, bookingYear, bookingMonth
+                )
                 _uiState.value = AnalyticsUiState.Success(data)
             } catch (e: Exception) {
                 _uiState.value = AnalyticsUiState.Error(e.message ?: "Erro ao carregar métricas")

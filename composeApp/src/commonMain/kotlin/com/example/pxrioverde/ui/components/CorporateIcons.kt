@@ -5,8 +5,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
+
+private const val CAR_PATH = "M18.92,6.01C18.72,5.42 18.16,5 17.5,5H6.5c-0.66,0 -1.22,0.42 -1.42,1.01L3,12v9c0,0.55 0.45,1 1,1h1c0.55,0 1,-0.45 1,-1v-1h12v1c0,0.55 0.45,1 1,1h1c0.55,0 1,-0.45 1,-1v-9l-2.08,-5.99zM6.5,16c-0.83,0 -1.5,-0.67 -1.5,-1.5S5.67,13 6.5,13s1.5,0.67 1.5,1.5S7.33,16 6.5,16zM17.5,16c-0.83,0 -1.5,-0.67 -1.5,-1.5s0.67,-1.5 1.5,-1.5s1.5,0.67 1.5,1.5s-0.67,1.5 -1.5,1.5zM5,11l1.5,-4.5h11L19,11H5z"
 
 object CorporateIcons {
     val Analytics: ImageVector get() = BarChart
@@ -92,6 +95,11 @@ object CorporateIcons {
             horizontalLineTo(3.01f)
         }.build()
 
+    /**
+     * Carro cheio (mesmo desenho do arquivo composeResources/drawable/car.xml).
+     * Fica definido em código para funcionar igual no Android, iOS e desktop,
+     * e muda de cor com o tema como os demais ícones.
+     */
     val Car: ImageVector
         get() = ImageVector.Builder(
             name = "Car",
@@ -99,44 +107,10 @@ object CorporateIcons {
             defaultHeight = 24.dp,
             viewportWidth = 24f,
             viewportHeight = 24f
-        ).path(
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 1.5f,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round
-        ) {
-            moveTo(7f, 17f)
-            curveTo(5.34f, 17f, 4f, 18.34f, 4f, 20f)
-            curveTo(4f, 21.66f, 5.34f, 23f, 7f, 23f)
-            curveTo(8.66f, 23f, 10f, 21.66f, 10f, 20f)
-            curveTo(10f, 18.34f, 8.66f, 17f, 7f, 17f)
-            close()
-            moveTo(17f, 17f)
-            curveTo(15.34f, 17f, 14f, 18.34f, 14f, 20f)
-            curveTo(14f, 21.66f, 15.34f, 23f, 17f, 23f)
-            curveTo(18.66f, 23f, 20f, 21.66f, 20f, 20f)
-            curveTo(20f, 18.34f, 18.66f, 17f, 17f, 17f)
-            close()
-            moveTo(18.92f, 6.01f)
-            curveTo(18.72f, 5.42f, 18.16f, 5f, 17.5f, 5f)
-            horizontalLineTo(6.5f)
-            curveTo(5.84f, 5f, 5.29f, 5.42f, 5.08f, 6.01f)
-            lineTo(3f, 12f)
-            verticalLineTo(19f)
-            curveTo(3f, 19.55f, 3.45f, 20f, 4f, 20f)
-            horizontalLineTo(5f)
-            curveTo(5.55f, 20f, 6f, 19.55f, 6f, 19f)
-            verticalLineTo(18f)
-            horizontalLineTo(18f)
-            verticalLineTo(19f)
-            curveTo(18f, 19.55f, 18.45f, 20f, 19f, 20f)
-            horizontalLineTo(20f)
-            curveTo(20.55f, 20f, 21f, 19.55f, 21f, 19f)
-            verticalLineTo(12f)
-            lineTo(18.92f, 6.01f)
-            close()
-        }.build()
-
+        ).addPath(
+            pathData = PathParser().parsePathString(CAR_PATH).toNodes(),
+            fill = SolidColor(Color.Black)
+        ).build()
     val Support: ImageVector
         get() = ImageVector.Builder(
             name = "Support",

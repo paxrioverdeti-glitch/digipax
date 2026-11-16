@@ -40,7 +40,65 @@ data class ComunicadoState(
     @SerialName("newTime") val newTime: String = "",
     val reason: String = "",
     @SerialName("adminFeedback") val adminFeedback: AdminFeedback? = null,
-    @SerialName("createdAt") val createdAt: Long = 0L
+    @SerialName("createdAt") val createdAt: Long = 0L,
+    @SerialName("cancelledAt") val cancelledAt: Long? = null
 ) {
     val userAvatarUrl: String? get() = avatarUrl
+
+    /**
+     * Identifica "a mesma ocorrência": tipo + dia + os horários que definem aquele tipo.
+     * Duas retiradas no mesmo dia em horários diferentes NÃO são iguais.
+     */
+    fun occurrenceKey(): String {
+        val times = when (type) {
+            AbsenceType.ATRASO -> listOf(expectedTime, effectiveTime)
+            AbsenceType.SAIDA_ANTECIPADA -> listOf(exitTime)
+            AbsenceType.RETIRADA -> listOf(exitTime, returnTime)
+            AbsenceType.FALTA -> emptyList()
+            AbsenceType.TROCA_HORARIO -> listOf(originalTime, newTime)
+        }
+        return (listOf(type.name, date.trim()) + times.map { it.trim() }).joinToString("|")
+    }
+
+    /** Comunicado recusado pelo gestor deixa de contar como duplicata (a pessoa pode reenviar). */
+    val isRejected: Boolean get() = adminFeedback?.isAuthorized == false
+
+    /** Comunicado cancelado pelo próprio colaborador. Também não conta como duplicata. */
+    val isCancelled: Boolean get() = cancelledAt != null
+
+    /** O colaborador só pode cancelar enquanto o gestor ainda não avaliou. */
+    val canBeCancelled: Boolean get() = !isCancelled && adminFeedback == null
+
+    /**
+     * Campos obrigatórios que ainda estão vazios, conforme o tipo de ocorrência.
+     * Lista vazia = comunicado completo e pronto para enviar.
+     */
+    fun missingRequiredFields(): List<String> {
+        val missing = mutableListOf<String>()
+        if (targetApproverId.isNullOrBlank()) missing += "supervisor"
+        if (date.isBlank()) missing += "data da ocorrência"
+        when (type) {
+            AbsenceType.ATRASO -> {
+                if (expectedTime.isBlank()) missing += "hora prevista"
+                if (effectiveTime.isBlank()) missing += "hora efetiva"
+            }
+            AbsenceType.SAIDA_ANTECIPADA -> {
+                if (exitTime.isBlank()) missing += "hora de saída"
+                if (missingHours.isBlank()) missing += "horas faltas"
+            }
+            AbsenceType.RETIRADA -> {
+                if (exitTime.isBlank()) missing += "hora de saída"
+                if (returnTime.isBlank()) missing += "hora de retorno"
+            }
+            AbsenceType.FALTA -> {
+                if (missingDays.isBlank()) missing += "dias/horas faltosas"
+            }
+            AbsenceType.TROCA_HORARIO -> {
+                if (originalTime.isBlank()) missing += "hora original"
+                if (newTime.isBlank()) missing += "novo horário"
+            }
+        }
+        if (reason.isBlank()) missing += "motivo"
+        return missing
+    }
 }

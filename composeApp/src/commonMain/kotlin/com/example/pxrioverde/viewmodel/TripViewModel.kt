@@ -75,6 +75,8 @@ class TripViewModel(
     }
 
     fun createBooking(booking: Booking, onResult: (Boolean, String?) -> Unit) {
+        // Ignora toques repetidos enquanto um agendamento já está sendo salvo.
+        if (_isBookingSubmitting.value) return
         _isBookingSubmitting.value = true
         _isSuccess.value = false
 
@@ -97,7 +99,10 @@ class TripViewModel(
 
                 // Validação de conflito usando horários agendados
                 // Filtramos para ignorar agendamentos que não ocupam mais o veículo
-                val hasConflict = _allBookings.value.any { existing ->
+                // Busca a lista atualizada no servidor: outra pessoa pode ter agendado agora há pouco.
+                val latestBookings = try { repository.getAllBookings() } catch (_: Exception) { _allBookings.value }
+                _allBookings.value = latestBookings
+                val hasConflict = latestBookings.any { existing ->
                     val status = existing.status.uppercase()
                     existing.carId == booking.carId &&
                     existing.date == booking.date &&
@@ -128,8 +133,25 @@ class TripViewModel(
 
                 // Cria o agendamento no Supabase e recupera o objeto criado (com ID)
                 val createdBooking = repository.createBooking(finalBooking)
-                val bookingId = createdBooking?.id
+                createdBooking?.id
                     ?: error("O agendamento foi salvo, mas não foi possível recuperar seu identificador.")
+
+                // EMERGENCIAL: as fotos e o KM já foram enviados no formulário, então a
+                // viagem começa agora (faz o check-in automático). O card já aparece para FINALIZAR.
+                if (booking.isEmergency) {
+                    val km = booking.initialKm ?: error("Informe o KM inicial da viagem emergencial.")
+                    try {
+                        startTripNow(createdBooking, km)
+                    } catch (e: Exception) {
+                        // O agendamento existe; se a partida falhar, o motorista ainda pode fazer o check-in manual.
+                        withContext(Dispatchers.Main) {
+                            _isBookingSubmitting.value = false
+                            onResult(false, "Agendamento criado, mas não foi possível iniciar a viagem: ${e.message}. Faça o check-in pelo card.")
+                        }
+                        loadBookings(booking.userId)
+                        return@launch
+                    }
+                }
                 
                 withContext(Dispatchers.Main) {
                     _isSuccess.value = true
@@ -179,29 +201,28 @@ class TripViewModel(
                     photoUrls = photoUrls
                 )
 
-                if (photoUrls.size == 4) {
-                    try {
-                        val trip = repository.getTripByBookingId(booking.id)
-                            ?: error("Viagem finalizada sem registro para analisar as fotos.")
-                        vehicleInspectionRepository.analyzeAndSaveReport(
-                            tripId = trip.id ?: error("A viagem não possui identificador."),
-                            carId = trip.carId,
-                            userId = trip.userId,
-                            initialPhotoUrls = trip.photoUrls,
-                            finalPhotoUrls = photoUrls
-                        ).onFailure { error ->
-                            inspectionError = error.message
-                            println("Erro ao analisar avarias da viagem ${booking.id}: ${error.message}")
-                        }
-                    } catch (e: Exception) {
-                        inspectionError = e.message
-                        println("Erro ao preparar análise de avarias da viagem ${booking.id}: ${e.message}")
-                    }
-                }
-                
                 _capturedPhotos.value = listOf(null, null, null, null)
                 loadBookings(booking.userId)
+                // A viagem já está salva com as fotos: libera o motorista agora.
                 onResult(true, inspectionError)
+
+                // A análise da IA roda em segundo plano, sem prender a tela do motorista.
+                if (photoUrls.size == 4) {
+                    viewModelScope.launch {
+                        try {
+                            val trip = repository.getTripByBookingId(booking.id)
+                                ?: error("Viagem finalizada sem registro para analisar as fotos.")
+                            // A análise roda no servidor (Edge Function), não no celular.
+                            vehicleInspectionRepository.requestServerAnalysis(
+                                tripId = trip.id ?: error("A viagem não possui identificador.")
+                            ).onFailure { error ->
+                                println("Erro ao analisar avarias da viagem ${booking.id}: ${error.message}")
+                            }
+                        } catch (e: Exception) {
+                            println("Erro ao preparar análise de avarias da viagem ${booking.id}: ${e.message}")
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 onResult(false, e.message)
@@ -262,41 +283,7 @@ class TripViewModel(
         viewModelScope.launch {
             _isUploading.value = true
             try {
-                val photoUrls = mutableListOf<String>()
-                _capturedPhotos.value.forEachIndexed { index, bytes ->
-                    bytes?.let {
-                        val url = repository.uploadTripPhoto(it, "trip_${booking.id}_$index.jpg")
-                        photoUrls.add(url)
-                    }
-                }
-
-                val nowInstant = Clock.System.now()
-                val kotlinxInstant = kotlinx.datetime.Instant.fromEpochMilliseconds(nowInstant.toEpochMilliseconds())
-                val now = kotlinxInstant.toLocalDateTime(TimeZone.currentSystemDefault())
-                val timeStr = "${now.hour.toString().padStart(2, '0')}:${now.minute.toString().padStart(2, '0')}"
-                
-                val updatedBooking = booking.copy(
-                    status = "EM_ANDAMENTO",
-                    startTime = timeStr,
-                    initialKm = km
-                )
-                repository.updateBooking(updatedBooking)
-
-                                val newTrip = Trip(
-                    bookingId = booking.id!!,
-                    userId = booking.userId,
-                    carId = booking.carId,
-                    startKm = km,
-                    startTime = Clock.System.now().toEpochMilliseconds(),
-                    photoUrls = photoUrls,
-                                    destination = booking.resolvedDestination,
-                                    status = "ativo"
-                                )
-
-                repository.startTrip(newTrip)
-                
-                _capturedPhotos.value = listOf(null, null, null, null)
-                loadBookings(booking.userId)
+                startTripNow(booking, km)
                 onResult(true)
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -305,6 +292,44 @@ class TripViewModel(
                 _isUploading.value = false
             }
         }
+    }
+
+    /**
+     * Inicia a viagem: sobe as 4 fotos, marca o agendamento como EM_ANDAMENTO e cria o registro
+     * da viagem. Usado pelo check-in normal e pelo emergencial (que inicia logo ao agendar).
+     */
+    private suspend fun startTripNow(booking: Booking, km: Double) {
+        val bookingId = booking.id ?: error("Agendamento sem identificador.")
+        require(_capturedPhotos.value.all { it != null }) { "Tire as 4 fotos do veículo antes de iniciar." }
+
+        val photoUrls = _capturedPhotos.value.mapIndexed { index, bytes ->
+            repository.uploadTripPhoto(bytes!!, "trip_${bookingId}_$index.jpg")
+        }
+
+        val nowInstant = Clock.System.now()
+        val now = kotlinx.datetime.Instant.fromEpochMilliseconds(nowInstant.toEpochMilliseconds())
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+        val timeStr = "${now.hour.toString().padStart(2, '0')}:${now.minute.toString().padStart(2, '0')}"
+
+        repository.updateBooking(
+            booking.copy(status = "EM_ANDAMENTO", startTime = timeStr, initialKm = km)
+        )
+
+        repository.startTrip(
+            Trip(
+                bookingId = bookingId,
+                userId = booking.userId,
+                carId = booking.carId,
+                startKm = km,
+                startTime = nowInstant.toEpochMilliseconds(),
+                photoUrls = photoUrls,
+                destination = booking.resolvedDestination,
+                status = "ativo"
+            )
+        )
+
+        _capturedPhotos.value = listOf(null, null, null, null)
+        loadBookings(booking.userId)
     }
 
     fun clearData() {

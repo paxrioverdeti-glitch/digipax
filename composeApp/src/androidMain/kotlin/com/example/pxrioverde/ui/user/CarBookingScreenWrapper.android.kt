@@ -3,6 +3,7 @@ package com.example.pxrioverde.ui.user
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -12,6 +13,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.pxrioverde.model.User
 import com.example.pxrioverde.util.compressTripPhoto
+import com.example.pxrioverde.util.TripPhotoRejectedException
+import com.example.pxrioverde.ui.components.PhotoGuideDialog
 import com.example.pxrioverde.viewmodel.TripViewModel
 import java.io.File
 
@@ -34,6 +37,9 @@ actual fun CarBookingScreenWrapper(
         if (success && imageUri != null && currentPhotoIndex != -1) {
             try {
                 viewModel.setCapturedPhoto(currentPhotoIndex, compressTripPhoto(context, imageUri))
+            } catch (e: TripPhotoRejectedException) {
+                // Foto escura/tremida: avisa e não guarda, para o motorista tirar de novo
+                Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -48,6 +54,9 @@ actual fun CarBookingScreenWrapper(
             // launchCamera() será chamado novamente pelo clique do usuário ou poderíamos auto-trigger
         }
     }
+
+    // Guia de enquadramento mostrado antes de abrir a câmera
+    var guideIndex by remember { mutableStateOf<Int?>(null) }
 
     fun launchCamera(index: Int) {
         currentPhotoIndex = index
@@ -73,11 +82,22 @@ actual fun CarBookingScreenWrapper(
         }
     }
 
+    guideIndex?.let { index ->
+        PhotoGuideDialog(
+            photoIndex = index,
+            onOpenCamera = {
+                guideIndex = null
+                launchCamera(index)
+            },
+            onDismiss = { guideIndex = null }
+        )
+    }
+
     CarBookingScreen(
         user = user,
         viewModel = viewModel,
         onBack = onBack,
-        onTakePhoto = { index -> launchCamera(index) },
+        onTakePhoto = { index -> guideIndex = index },
         defaultDepartment = defaultDepartment
     )
 }

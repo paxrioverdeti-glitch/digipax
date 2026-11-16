@@ -49,6 +49,7 @@ fun UserAbsencePortal(
     }
     
     var showCreateForm by remember { mutableStateOf(false) }
+    var duplicateError by remember { mutableStateOf<String?>(null) }
     var newAbsenceState by remember { mutableStateOf(ComunicadoState(
         userId = userId,
         userName = userName,
@@ -63,9 +64,16 @@ fun UserAbsencePortal(
     if (showCreateForm) {
         ComunicadoAusenciaScreen(
             state = newAbsenceState,
-            onStateChange = { newAbsenceState = it },
+            onStateChange = { newAbsenceState = it; duplicateError = null },
             onSave = { state ->
-                viewModel.submitAbsence(state) {
+                duplicateError = null
+                viewModel.submitAbsence(
+                    state,
+                    onDuplicate = {
+                        duplicateError = "Você já enviou um comunicado igual (${state.type.label}, ${state.date}). " +
+                            "Confira na lista de Meus Comunicados."
+                    }
+                ) {
                     notificationService?.notifyUserAbsenceSubmitted(state.type.label)
                     showCreateForm = false
                     viewModel.loadUserAbsences(userId)
@@ -73,7 +81,9 @@ fun UserAbsencePortal(
             },
             onBack = { showCreateForm = false },
             supervisors = supervisors,
-            isAdminMode = false
+            isAdminMode = false,
+            isSubmitting = isLoading,
+            submitError = duplicateError
         )
     } else if (selectedAbsence != null) {
         ComunicadoAusenciaScreen(
@@ -83,7 +93,25 @@ fun UserAbsencePortal(
             onBack = { viewModel.selectAbsence(null) },
             supervisors = supervisors,
             isReadOnly = true,
-            isAdminMode = false
+            isAdminMode = false,
+            isSubmitting = isLoading,
+            submitError = duplicateError,
+            onCancel = {
+                val id = selectedAbsence!!.id
+                if (id != null) {
+                    duplicateError = null
+                    viewModel.cancelAbsence(
+                        id,
+                        onSuccess = {
+                            viewModel.selectAbsence(null)
+                            viewModel.loadUserAbsences(userId)
+                        },
+                        onError = {
+                            duplicateError = "Não foi possível cancelar. Se o comunicado já foi avaliado, fale com o RH."
+                        }
+                    )
+                }
+            }
         )
     } else {
         Scaffold(
@@ -145,6 +173,7 @@ fun UserAbsencePortal(
                     ) {
                         items(userAbsences) { absence ->
                             UserAbsenceItemCard(absence, onClick = { 
+                                duplicateError = null
                                 if (absence.adminFeedback != null) {
                                     viewModel.markAbsenceAsViewed(absence.id ?: "")
                                 }
@@ -220,7 +249,20 @@ fun UserAbsenceItemCard(absence: ComunicadoState, onClick: () -> Unit) {
                 Text(absence.date, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
             
-            if (absence.adminFeedback != null) {
+            if (absence.isCancelled) {
+                Surface(
+                    color = Color(0xFFB91C1C).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        "CANCELADO",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFB91C1C),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else if (absence.adminFeedback != null) {
                 Surface(
                     color = Color(0xFF2E7D32).copy(alpha = 0.1f),
                     shape = RoundedCornerShape(8.dp)
