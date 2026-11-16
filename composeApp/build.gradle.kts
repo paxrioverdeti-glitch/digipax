@@ -66,6 +66,10 @@ kotlin {
                 implementation(libs.supabase.storage)
                 implementation(libs.supabase.kt)
 
+                // Ktor: todas as pecas na MESMA versao. No iPhone (Kotlin/Native), pecas de
+                // versoes diferentes (ex.: darwin 3.0.3 com core 3.1.0) fecham o app com
+                // IrLinkageError na primeira chamada de rede. O BOM alinha tudo.
+                implementation(project.dependencies.platform("io.ktor:ktor-bom:${libs.versions.ktor.get()}"))
                 implementation(libs.ktor.client.websockets)
                 implementation(libs.kamel)
                 implementation(libs.coil.compose)
