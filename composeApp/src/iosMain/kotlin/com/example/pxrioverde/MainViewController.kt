@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,6 +27,8 @@ import com.example.pxrioverde.di.koinInitError
 import kotlinx.coroutines.delay
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.setUnhandledExceptionHook
+import platform.Foundation.NSLog
+import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
 
 /**
@@ -38,13 +42,51 @@ import platform.UIKit.UIViewController
 object IosCrashReporter {
     var lastError: String? = null
 
+    private const val KEY_LAST_CRASH = "diag_last_crash"
+
+    /** Erro gravado pela abertura ANTERIOR (que fechou sozinha). Lido uma vez ao iniciar. */
+    var previousCrash: String? = null
+        private set
+
     fun record(throwable: Throwable) {
         if (lastError != null) return // mantem o PRIMEIRO erro, que costuma ser a causa raiz
-        val tipo = throwable::class.simpleName ?: "Throwable"
+        val tipo = throwable::class.qualifiedName ?: throwable::class.simpleName ?: "Throwable"
         val msg = throwable.message ?: throwable.toString()
-        val rastro = throwable.stackTraceToString().take(1800)
+        val rastro = throwable.stackTraceToString().take(4000)
         lastError = "[$tipo] $msg\n\n$rastro"
         println("DEBUG: IosCrashReporter capturou: $tipo - $msg")
+    }
+
+    /**
+     * Grava o erro no aparelho ANTES de o iOS fechar o app. Quando a falha acontece
+     * enquanto o iPhone desenha a tela, o app e encerrado logo depois deste gancho,
+     * entao guardar so na memoria nao adianta. Na proxima abertura mostramos o que foi salvo.
+     */
+    fun persist() {
+        val erro = lastError ?: return
+        val texto = "$erro\n\n--- Etapas ate a falha ---\n${IosBootTrace.texto()}"
+        try {
+            val defaults = NSUserDefaults.standardUserDefaults
+            defaults.setObject(texto, forKey = KEY_LAST_CRASH)
+            defaults.synchronize()
+        } catch (_: Throwable) {
+        }
+        // Tambem vai para o log do sistema (aparece no console do iMazing).
+        NSLog("PXRV_CRASH %@", texto.take(3500))
+    }
+
+    /** Chamado no inicio de cada abertura: le e apaga o erro da abertura anterior. */
+    fun loadPreviousCrash() {
+        try {
+            val defaults = NSUserDefaults.standardUserDefaults
+            previousCrash = defaults.stringForKey(KEY_LAST_CRASH)
+            if (previousCrash != null) {
+                defaults.removeObjectForKey(KEY_LAST_CRASH)
+                defaults.synchronize()
+            }
+        } catch (_: Throwable) {
+            previousCrash = null
+        }
     }
 }
 
@@ -65,6 +107,8 @@ object IosBootTrace {
         if (etapas.lastOrNull() == etapa) return
         etapas.add(etapa)
         println("DEBUG: [boot] $etapa")
+        // No log do sistema, para aparecer no console do iMazing mesmo sem a tela de diagnostico.
+        NSLog("PXRV_BOOT %@", etapa)
     }
 
     fun texto(): String =
@@ -81,6 +125,9 @@ private fun installCrashHook() {
     try {
         setUnhandledExceptionHook { throwable ->
             IosCrashReporter.record(throwable)
+            // Grava no aparelho: se o iOS encerrar o app logo em seguida, a proxima
+            // abertura ainda consegue mostrar o erro.
+            IosCrashReporter.persist()
             // Nao relancamos: evitamos o abort() e deixamos a UI exibir o erro.
         }
     } catch (e: Throwable) {
@@ -90,6 +137,14 @@ private fun installCrashHook() {
 
 @Composable
 fun SafeApp() {
+    // Se a abertura ANTERIOR fechou sozinha, mostra primeiro o erro que ficou gravado.
+    var previousCrash by remember { mutableStateOf(IosCrashReporter.previousCrash) }
+    val crashed = previousCrash
+    if (crashed != null) {
+        PreviousCrashScreen(crashed, onContinue = { previousCrash = null })
+        return
+    }
+
     // Mostra o erro do Koin (inicializacao de dependencias) OU qualquer erro
     // capturado globalmente, com rolagem para caber na tela. Reavalia a cada
     // segundo para pegar um erro que ocorra logo apos a abertura.
@@ -138,7 +193,43 @@ fun SafeApp() {
     }
 }
 
+/**
+ * Tela simples (so texto e um botao) para nao depender de nada que possa ter causado a falha.
+ * O texto e selecionavel para facilitar copiar e enviar ao suporte.
+ */
+@Composable
+private fun PreviousCrashScreen(errorText: String, onContinue: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.White).padding(24.dp),
+        contentAlignment = Alignment.TopStart
+    ) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Text(
+                text = "O app fechou na última abertura (build de diagnóstico)",
+                color = Color.Red,
+                fontSize = 18.sp
+            )
+            Text(
+                text = "\nTire um print desta tela inteira (role até o fim) e envie ao suporte.\n",
+                color = Color(0xFF444444),
+                fontSize = 13.sp
+            )
+            Button(onClick = onContinue) {
+                Text("Tentar abrir o app de novo")
+            }
+            SelectionContainer {
+                Text(
+                    text = "\n$errorText",
+                    color = Color(0xFF222222),
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
 fun MainViewController(): UIViewController {
+    IosCrashReporter.loadPreviousCrash()
     IosBootTrace.passo("MainViewController chamado")
     installCrashHook()
     IosBootTrace.passo("Hook de excecao instalado")

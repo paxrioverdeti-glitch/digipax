@@ -143,3 +143,14 @@ jobs:
         with:
           name: ios-app-release
           path: build/output/*.ipa
+
+      # Mapa de simbolos (dSYM): traduz os enderecos dos relatorios de falha (.ips)
+      # em nomes de funcoes. Sem ele o relatorio do iPhone so mostra numeros.
+      - name: Upload dSYM Artifact (diagnostico de falhas)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-dsym-build-${{ github.run_number }}
+          path: build/iosApp.xcarchive/dSYMs
+          if-no-files-found: warn
+          retention-days: 90
