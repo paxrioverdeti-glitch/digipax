@@ -27,7 +27,6 @@ import com.example.pxrioverde.di.koinInitError
 import kotlinx.coroutines.delay
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.setUnhandledExceptionHook
-import platform.Foundation.NSLog
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
 
@@ -71,8 +70,9 @@ object IosCrashReporter {
             defaults.synchronize()
         } catch (_: Throwable) {
         }
-        // Tambem vai para o log do sistema (aparece no console do iMazing).
-        NSLog("PXRV_CRASH %@", texto.take(3500))
+        // Obs.: NAO usar NSLog("%@", textoKotlin) aqui. O Kotlin nao converte a String para
+        // NSString ao passar para funcao C com argumentos variaveis, e o NSLog derruba o app
+        // (foi isso que fechou o build 25 logo na abertura).
     }
 
     /** Chamado no inicio de cada abertura: le e apaga o erro da abertura anterior. */
@@ -107,8 +107,6 @@ object IosBootTrace {
         if (etapas.lastOrNull() == etapa) return
         etapas.add(etapa)
         println("DEBUG: [boot] $etapa")
-        // No log do sistema, para aparecer no console do iMazing mesmo sem a tela de diagnostico.
-        NSLog("PXRV_BOOT %@", etapa)
     }
 
     fun texto(): String =
