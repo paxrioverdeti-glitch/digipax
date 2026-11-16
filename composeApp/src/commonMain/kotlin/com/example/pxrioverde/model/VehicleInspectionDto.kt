@@ -34,7 +34,29 @@ data class DanoEncontradoDto(
 
     @SerialName("gravidade")
     val gravidade: String = "Leve", // "Leve" | "Moderado" | "Grave"
-)
+
+    /** Certeza da IA de que é dano novo e real (0 a 1). Nulo em relatórios antigos. */
+    @SerialName("confianca")
+    val confianca: Double? = null,
+
+    /** Qual foto FINAL mostra o dano (ordem de captura: 0 Frente, 1 Traseira, 2 Lat. Esq., 3 Lat. Dir.). */
+    @SerialName("foto_index")
+    val fotoIndex: Int? = null,
+
+    /** Retângulo do dano na foto final: [ymin, xmin, ymax, xmax], de 0 a 1. Aproximado. */
+    @SerialName("caixa")
+    val caixa: List<Double>? = null,
+
+    /**
+     * "esta_viagem": surgiu durante esta viagem (foto inicial x final).
+     * "entre_viagens": já estava no carro quando este motorista pegou (final da viagem anterior x inicial desta).
+     * Nulo em relatórios antigos (tratado como "esta_viagem").
+     */
+    @SerialName("origem")
+    val origem: String? = null,
+) {
+    val isBetweenTrips: Boolean get() = origem == "entre_viagens"
+}
 
 /**
  * Item consolidado exibido na Aba Administrativa de Relatório de Avarias do Gestor de Frota.
@@ -68,7 +90,21 @@ data class VehicleDamageReportItem(
     val finalPhotoUrls: List<String> = emptyList(),
     @SerialName("analyzed_at")
     val analyzedAt: Long = kotlin.time.Clock.System.now().toEpochMilliseconds(),
-)
+    /** IA não analisou ou as fotos não servem: precisa de olho humano. */
+    @SerialName("needs_review")
+    val needsReview: Boolean = false,
+    /** Decisão do gestor: "confirmado", "falso_alarme" ou nulo (ainda não revisou). */
+    @SerialName("review_status")
+    val reviewStatus: String? = null,
+) {
+    /**
+     * A IA ainda não deu resultado para esta vistoria (nunca rodou, falhou ou travou)
+     * e o gestor ainda não decidiu. Todos esses textos começam com "Análise automática".
+     * Foto inadequada NÃO entra aqui: a IA já analisou, repetir não mudaria nada.
+     */
+    val isAnalysisPending: Boolean
+        get() = reviewStatus == null && resumoGeral.startsWith("Análise automática")
+}
 
 /**
  * Ângulos das fotos obrigatórias exigidos na vistoria de veículos de frota.

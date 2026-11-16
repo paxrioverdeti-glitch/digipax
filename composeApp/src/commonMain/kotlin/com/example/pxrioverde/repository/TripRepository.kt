@@ -19,6 +19,38 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 
+/** Leitura tolerante de viagens: campos vazios no banco não derrubam a lista inteira. */
+@Serializable
+private data class TripRowLenient(
+    val id: String? = null,
+    @SerialName("booking_id") val bookingId: String? = null,
+    @SerialName("user_id") val userId: String? = null,
+    @SerialName("car_id") val carId: String? = null,
+    @SerialName("start_km") val startKm: Double? = null,
+    @SerialName("end_km") val endKm: Double? = null,
+    @SerialName("start_time") val startTime: Long? = null,
+    @SerialName("end_time") val endTime: Long? = null,
+    @SerialName("photo_urls") val photoUrls: List<String>? = null,
+    @SerialName("end_photo_urls") val endPhotoUrls: List<String>? = null,
+    val destination: String? = null,
+    val status: String? = null
+) {
+    fun toTrip() = Trip(
+        id = id,
+        bookingId = bookingId.orEmpty(),
+        userId = userId.orEmpty(),
+        carId = carId.orEmpty(),
+        startKm = startKm ?: 0.0,
+        endKm = endKm,
+        startTime = startTime ?: 0L,
+        endTime = endTime,
+        photoUrls = photoUrls.orEmpty(),
+        endPhotoUrls = endPhotoUrls.orEmpty(),
+        destination = destination,
+        status = status ?: "ativo"
+    )
+}
+
 @Serializable
 private data class BookingWritePayload(
     @SerialName("car_id")
@@ -103,18 +135,66 @@ class TripRepository(
         }
     }
 
+    /**
+     * Busca os agendamentos de um mês/ano direto no banco (para as Métricas).
+     * Antes só vinham os 50 mais recentes, então meses anteriores ficavam de fora.
+     * year == null: sem filtro de data (traz os mais recentes, até [maxRows]).
+     * month == null: o ano inteiro.
+     */
+    suspend fun getBookingsByPeriod(year: Int?, month: Int?, maxRows: Int = 2000): List<Booking> {
+        return try {
+            val pageSize = 500
+            val result = mutableListOf<Booking>()
+            var page = 0
+            while (result.size < maxRows) {
+                val start = page * pageSize
+                val chunk = supabase.from("bookings_api")
+                    .select(Columns.raw("*, avatar_url")) {
+                        if (year != null) {
+                            val from: String
+                            val to: String
+                            if (month != null) {
+                                val nextYear = if (month == 12) year + 1 else year
+                                val nextMonth = if (month == 12) 1 else month + 1
+                                from = "$year-${month.toString().padStart(2, '0')}-01"
+                                to = "$nextYear-${nextMonth.toString().padStart(2, '0')}-01"
+                            } else {
+                                from = "$year-01-01"
+                                to = "${year + 1}-01-01"
+                            }
+                            filter {
+                                gte("bookingDate", from)
+                                lt("bookingDate", to)
+                            }
+                        }
+                        order("createdAt", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                        range(start.toLong(), (start + pageSize - 1).toLong())
+                    }
+                    .decodeList<Booking>()
+                result.addAll(chunk)
+                if (chunk.size < pageSize) break
+                page++
+            }
+            attachCanonicalDestinations(result)
+        } catch (e: Exception) {
+            println("Erro ao buscar agendamentos do período: ${e.message}")
+            emptyList()
+        }
+    }
+
     private suspend fun attachCanonicalDestinations(bookings: List<Booking>): List<Booking> {
         val bookingIds = bookings.mapNotNull { it.id }.distinct()
         if (bookingIds.isEmpty()) return bookings
 
-        val destinationsByBookingId = supabase.from("bookings")
-            .select(Columns.raw("id, location")) {
-                filter {
-                    isIn("id", bookingIds)
+        val destinationsByBookingId = bookingIds.chunked(100).flatMap { ids ->
+            supabase.from("bookings")
+                .select(Columns.raw("id, location")) {
+                    filter {
+                        isIn("id", ids)
+                    }
                 }
-            }
-            .decodeList<BookingDestinationPayload>()
-            .associate { it.id to it.location }
+                .decodeList<BookingDestinationPayload>()
+        }.associate { it.id to it.location }
 
         return bookings.map { booking ->
             val canonicalDestination = destinationsByBookingId[booking.id]
@@ -133,9 +213,28 @@ class TripRepository(
                 val start = (page ?: 0) * pageSize
                 val end = start + pageSize - 1
                 range(start.toLong(), end.toLong())
-            }.decodeList<Trip>()
+            }.decodeList<TripRowLenient>().map { it.toTrip() }
         } catch (e: Exception) {
             println("Erro ao buscar todas as trips: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /**
+     * Busca as viagens exatamente dos agendamentos informados (para as Métricas).
+     * Antes eram buscadas "50 viagens quaisquer", que muitas vezes não eram as dos
+     * agendamentos da tela, e por isso os finalizados apareciam sem fotos.
+     */
+    suspend fun getTripsByBookingIds(bookingIds: List<String>): List<Trip> {
+        if (bookingIds.isEmpty()) return emptyList()
+        return try {
+            bookingIds.chunked(100).flatMap { ids ->
+                supabase.from("trips").select {
+                    filter { isIn("booking_id", ids) }
+                }.decodeList<TripRowLenient>().map { it.toTrip() }
+            }
+        } catch (e: Exception) {
+            println("Erro ao buscar viagens dos agendamentos: ${e.message}")
             emptyList()
         }
     }

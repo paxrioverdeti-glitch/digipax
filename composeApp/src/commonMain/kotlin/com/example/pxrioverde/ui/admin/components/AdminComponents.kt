@@ -282,12 +282,13 @@ fun AppointmentRowItem(appointment: Appointment, onViewPhotosClick: () -> Unit) 
 
 private fun formatTripPhotoUrl(url: String): String {
     val normalized = url.trim()
+    // Link direto da foto. O endereço "render/image" (redimensionar no servidor) só funciona
+    // no plano pago do Supabase; no gratuito ele devolve erro e a foto fica em branco.
     if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
-        return normalized
-            .replace("/storage/v1/object/public/", "/storage/v1/render/image/public/")
-            .let { "$it?width=800&quality=75&resize=contain" }
+        return normalized.replace("/storage/v1/render/image/public/", "/storage/v1/object/public/")
+            .substringBefore("?")
     }
-    return "https://yfkpqeeoticvajgitkrw.supabase.co/storage/v1/render/image/public/trip_photos/$normalized?width=800&quality=75&resize=contain"
+    return "https://yfkpqeeoticvajgitkrw.supabase.co/storage/v1/object/public/trip_photos/${normalized.removePrefix("trip_photos/")}"
 }
 
 @Composable

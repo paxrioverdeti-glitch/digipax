@@ -102,16 +102,21 @@ class AbsenceViewModel(
                 val dbApprovers = authService.getApprovers()
                 if (dbApprovers.isNotEmpty()) {
                     _approvers.value = dbApprovers
-                    _fixedSupervisors.value = dbApprovers.map { user ->
+                    val fetchedSupervisors = dbApprovers.map { user ->
                         Supervisor(
                             id = user.id,
                             name = user.name ?: user.displayName,
                             email = user.email
                         )
                     }
+                    val combined = (SupervisorData.list + fetchedSupervisors).distinctBy { it.email.lowercase() }
+                    _fixedSupervisors.value = combined
+                } else {
+                    _fixedSupervisors.value = SupervisorData.list
                 }
             } catch (e: Exception) {
                 println("DEBUG: Erro ao carregar aprovadores do banco: ${e.message}")
+                _fixedSupervisors.value = SupervisorData.list
             }
         }
     }
@@ -124,14 +129,50 @@ class AbsenceViewModel(
         }
     }
 
-    fun submitAbsence(absence: ComunicadoState, onSuccess: () -> Unit = {}) {
+    private var isSubmitting = false
+
+    /**
+     * Envia o comunicado. Antes de gravar, confere no servidor se a pessoa já enviou
+     * um igual (mesmo tipo, dia e horários) que não tenha sido recusado.
+     * Também ignora um segundo toque enquanto o primeiro envio ainda está em andamento.
+     */
+    fun submitAbsence(
+        absence: ComunicadoState,
+        onDuplicate: () -> Unit = {},
+        onSuccess: () -> Unit = {}
+    ) {
+        if (isSubmitting) return
+        isSubmitting = true
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                repository.submitAbsence(absence)
+                val key = absence.occurrenceKey()
+                val alreadySent = repository.getAbsencesByUser(absence.userId)
+                    .any { !it.isRejected && !it.isCancelled && it.occurrenceKey() == key }
+                if (alreadySent) {
+                    onDuplicate()
+                } else {
+                    repository.submitAbsence(absence)
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+                isSubmitting = false
+            }
+        }
+    }
+
+    fun cancelAbsence(absenceId: String, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                repository.cancelAbsence(absenceId)
                 onSuccess()
             } catch (e: Exception) {
                 e.printStackTrace()
+                onError(e.message ?: "Não foi possível cancelar o comunicado.")
             } finally {
                 _isLoading.value = false
             }

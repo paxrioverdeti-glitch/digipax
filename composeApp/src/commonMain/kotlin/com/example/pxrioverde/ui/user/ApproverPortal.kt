@@ -169,7 +169,20 @@ fun ApproverAbsenceItemCard(absence: ComunicadoState, onClick: () -> Unit) {
                 )
             }
             
-            if (absence.adminFeedback != null) {
+            if (absence.isCancelled) {
+                Surface(
+                    color = Color(0xFFB91C1C).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "CANCELADO",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFB91C1C),
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            } else if (absence.adminFeedback != null) {
                 Surface(
                     color = Color(0xFF2E7D32).copy(alpha = 0.1f),
                     shape = RoundedCornerShape(8.dp)

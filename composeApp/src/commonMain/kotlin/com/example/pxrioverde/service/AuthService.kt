@@ -172,7 +172,11 @@ class AuthService {
             val response = supabase.from("profiles")
                 .select {
                     filter {
-                        eq("role", "ADMIN")
+                        or {
+                            eq("role", "ADMIN")
+                            eq("role", "SUPERVISOR")
+                            eq("role", "ENCARREGADO")
+                        }
                     }
                 }
             

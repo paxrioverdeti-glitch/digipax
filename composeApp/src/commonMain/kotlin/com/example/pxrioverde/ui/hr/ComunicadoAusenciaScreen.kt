@@ -43,13 +43,17 @@ fun ComunicadoAusenciaScreen(
     onBack: () -> Unit,
     supervisors: List<Supervisor> = emptyList(),
     isReadOnly: Boolean = false,
-    isAdminMode: Boolean = true // Por padrão para fins de teste/demo no admin
+    isAdminMode: Boolean = true, // Por padrão para fins de teste/demo no admin
+    isSubmitting: Boolean = false,
+    submitError: String? = null,
+    onCancel: (() -> Unit)? = null
 ) {
     val scrollState = rememberScrollState()
     val corporateGreen = Color(0xFF1B4332)
     val lightGrayBg = Color(0xFFF8F9FA)
     
     var showEvaluationDialog by remember { mutableStateOf(false) }
+    var showCancelDialog by remember { mutableStateOf(false) }
 
     // Estados para Date e Time Pickers
     var showDatePicker by remember { mutableStateOf(false) }
@@ -140,7 +144,7 @@ fun ComunicadoAusenciaScreen(
         },
         containerColor = lightGrayBg,
         floatingActionButton = {
-            if (isAdminMode && isReadOnly && state.adminFeedback == null) {
+            if (isAdminMode && isReadOnly && state.adminFeedback == null && !state.isCancelled) {
                 ExtendedFloatingActionButton(
                     onClick = { showEvaluationDialog = true },
                     containerColor = corporateGreen,
@@ -162,6 +166,22 @@ fun ComunicadoAusenciaScreen(
             // --- SEÇÃO DO ADMINISTRADOR (Parecer RH) ---
             if (isReadOnly && state.adminFeedback != null) {
                 AdminFeedbackSection(state.adminFeedback)
+            }
+
+            // --- AVISO: COMUNICADO CANCELADO ---
+            if (state.isCancelled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2))
+                ) {
+                    Text(
+                        "Este comunicado foi cancelado. Não precisa de avaliação.",
+                        modifier = Modifier.padding(16.dp),
+                        color = Color(0xFF991B1B),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
 
             // --- GUIA DE REGRAS & PARECERES ---
@@ -271,30 +291,84 @@ fun ComunicadoAusenciaScreen(
 
             // --- BOTÃO DE AÇÃO ---
             if (!isReadOnly) {
-                val isApproverSelected = !state.targetApproverId.isNullOrBlank()
+                val missingFields = state.missingRequiredFields()
+                val isComplete = missingFields.isEmpty()
                 
+                if (!isComplete) {
+                    Text(
+                        "Falta preencher: ${missingFields.joinToString(", ")}.",
+                        color = Color(0xFFB45309),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                if (submitError != null) {
+                    Text(
+                        submitError,
+                        color = Color(0xFFB91C1C),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
                 Button(
                     onClick = { onSave(state) },
-                    enabled = isApproverSelected,
+                    enabled = isComplete && !isSubmitting,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = corporateGreen,
-                        disabledContainerColor = Color.LightGray
+                        disabledContainerColor = Color.LightGray,
+                        disabledContentColor = Color.DarkGray
                     )
                 ) {
                     Text(
-                        if (isApproverSelected) "ENVIAR COMUNICADO" else "SELECIONE UM SUPERVISOR",
+                        "ENVIAR COMUNICADO",
                         fontWeight = FontWeight.Bold, 
                         fontSize = 16.sp
                     )
                 }
             }
+
+            // --- CANCELAR COMUNICADO (só o colaborador, antes da avaliação) ---
+            if (isReadOnly && onCancel != null && state.canBeCancelled) {
+                OutlinedButton(
+                    onClick = { showCancelDialog = true },
+                    enabled = !isSubmitting,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFB91C1C)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB91C1C))
+                ) {
+                    Text("CANCELAR COMUNICADO", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                if (submitError != null) {
+                    Text(submitError, color = Color(0xFFB91C1C), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                }
+            }
             
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = { Text("Cancelar comunicado?") },
+            text = { Text("O comunicado de ${state.type.label} do dia ${state.date} será cancelado e o gestor não precisará avaliar. Isso não pode ser desfeito.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCancelDialog = false
+                    onCancel?.invoke()
+                }) { Text("SIM, CANCELAR", color = Color(0xFFB91C1C), fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) { Text("VOLTAR") }
+            }
+        )
     }
 
     if (showEvaluationDialog) {
@@ -452,24 +526,14 @@ fun DynamicOccurrenceFields(
     val fieldModifier = Modifier.fillMaxWidth()
 
     // Campo comum: Data
-    Box(modifier = if (!isReadOnly) Modifier.clickable { onPickDate("date") } else Modifier) {
-        OutlinedTextField(
-            value = state.date,
-            onValueChange = { },
-            label = { Text("Data da Ocorrência") },
-            modifier = fieldModifier,
-            enabled = false,
-            readOnly = true,
-            leadingIcon = { Icon(CorporateIcons.Calendar, null, modifier = Modifier.size(20.dp)) },
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                disabledBorderColor = Color.LightGray,
-                disabledTextColor = Color.Black,
-                disabledLabelColor = Color.Gray,
-                disabledLeadingIconColor = Color(0xFF1B4332)
-            )
-        )
-    }
+    PickerField(
+        value = state.date,
+        label = "Data da Ocorrência",
+        isTime = false,
+        isReadOnly = isReadOnly,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onPickDate("date") }
+    )
 
     Spacer(modifier = Modifier.height(8.dp))
 
@@ -480,38 +544,8 @@ fun DynamicOccurrenceFields(
         exit = shrinkVertically() + fadeOut()
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(modifier = Modifier.weight(1f).then(if (!isReadOnly) Modifier.clickable { onPickTime("expectedTime") } else Modifier)) {
-                OutlinedTextField(
-                    value = state.expectedTime,
-                    onValueChange = { },
-                    label = { Text("H. Prevista") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    readOnly = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        disabledBorderColor = Color.LightGray,
-                        disabledTextColor = Color.Black,
-                        disabledLabelColor = Color.Gray
-                    )
-                )
-            }
-            Box(modifier = Modifier.weight(1f).then(if (!isReadOnly) Modifier.clickable { onPickTime("effectiveTime") } else Modifier)) {
-                OutlinedTextField(
-                    value = state.effectiveTime,
-                    onValueChange = { },
-                    label = { Text("H. Efetiva") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    readOnly = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        disabledBorderColor = Color.LightGray,
-                        disabledTextColor = Color.Black,
-                        disabledLabelColor = Color.Gray
-                    )
-                )
-            }
+            PickerField(state.expectedTime, "H. Prevista", true, isReadOnly, Modifier.weight(1f)) { onPickTime("expectedTime") }
+            PickerField(state.effectiveTime, "H. Efetiva", true, isReadOnly, Modifier.weight(1f)) { onPickTime("effectiveTime") }
         }
     }
 
@@ -520,22 +554,7 @@ fun DynamicOccurrenceFields(
         enter = expandVertically() + fadeIn()
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(modifier = Modifier.weight(1f).then(if (!isReadOnly) Modifier.clickable { onPickTime("exitTime") } else Modifier)) {
-                OutlinedTextField(
-                    value = state.exitTime,
-                    onValueChange = { },
-                    label = { Text("Hora Saída") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    readOnly = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        disabledBorderColor = Color.LightGray,
-                        disabledTextColor = Color.Black,
-                        disabledLabelColor = Color.Gray
-                    )
-                )
-            }
+            PickerField(state.exitTime, "Hora Saída", true, isReadOnly, Modifier.weight(1f)) { onPickTime("exitTime") }
             OutlinedTextField(
                 value = state.missingHours,
                 onValueChange = { onStateChange(state.copy(missingHours = it)) },
@@ -977,5 +996,42 @@ private fun GuidelineItem(
                 lineHeight = 18.sp
             )
         }
+    }
+}
+
+/** Campo de data/hora padronizado: mesmo fundo, borda, rótulo e ícone em todos. */
+@Composable
+private fun PickerField(
+    value: String,
+    label: String,
+    isTime: Boolean,
+    isReadOnly: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(modifier = modifier.then(if (!isReadOnly) Modifier.clickable { onClick() } else Modifier)) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = { },
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = false,
+            readOnly = true,
+            leadingIcon = {
+                Icon(
+                    if (isTime) CorporateIcons.Clock else CorporateIcons.Calendar,
+                    null,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledContainerColor = Color.White,
+                disabledBorderColor = Color.LightGray,
+                disabledTextColor = Color.Black,
+                disabledLabelColor = Color.Gray,
+                disabledLeadingIconColor = Color(0xFF1B4332)
+            )
+        )
     }
 }

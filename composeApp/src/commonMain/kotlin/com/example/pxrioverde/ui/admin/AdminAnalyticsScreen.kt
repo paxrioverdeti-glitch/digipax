@@ -86,8 +86,16 @@ fun AdminAnalyticsScreen(
         list
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadData()
+    // Recarrega os agendamentos do período escolhido (mês/ano ou dia do calendário).
+    LaunchedEffect(selectedYear, selectedMonth, selectedDate) {
+        val day = selectedDate
+        if (day != null) {
+            viewModel.setBookingPeriod(day.year, day.monthNumber)
+        } else {
+            val year = selectedYear.toIntOrNull()
+            val month = months.indexOf(selectedMonth).takeIf { it > 0 }
+            viewModel.setBookingPeriod(year, if (year != null) month else null)
+        }
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {

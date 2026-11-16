@@ -23,16 +23,20 @@ class GetAnalyticsDashboardUseCase(
     private val ticketRepository: TicketRepository,
     private val purchaseRepository: PurchaseRepository
 ) {
-    suspend operator fun invoke(month: Int? = null, year: Int? = null): DashboardData = coroutineScope {
+    suspend operator fun invoke(
+        month: Int? = null,
+        year: Int? = null,
+        bookingYear: Int? = null,
+        bookingMonth: Int? = null
+    ): DashboardData = coroutineScope {
         // 1. Buscar dados de forma otimizada e paralela
         val ticketCountsDeferred = async { ticketRepository.getTicketCounts() }
         val kmMetricsDeferred = async { tripRepository.getKmMetrics() }
         val ticketMetricsDeferred = async { ticketRepository.getTicketMetrics() }
         val allTicketsDeferred = async { ticketRepository.getAllTickets(page = 0, pageSize = 50) }
         
-        // Buscamos apenas os últimos 50 agendamentos e trips (paginado)
-        val bookingsDeferred = async { tripRepository.getAllBookings(page = 0, pageSize = 50) }
-        val tripsDeferred = async { tripRepository.getAllTrips(page = 0, pageSize = 50) }
+        // Agendamentos do período escolhido na tela (sem período: os mais recentes)
+        val bookingsDeferred = async { tripRepository.getBookingsByPeriod(bookingYear, bookingMonth) }
         val carsDeferred = async { tripRepository.getAllCars() }
         val purchasesDeferred = async { purchaseRepository.getAllRequests() }
 
@@ -41,7 +45,8 @@ class GetAnalyticsDashboardUseCase(
         val ticketMetricsResult = ticketMetricsDeferred.await()
         val tickets = allTicketsDeferred.await()
         val bookings = bookingsDeferred.await()
-        val trips = tripsDeferred.await()
+        // Viagens exatamente dos agendamentos da tela (é nelas que ficam as fotos)
+        val trips = tripRepository.getTripsByBookingIds(bookings.mapNotNull { it.id })
         val cars = carsDeferred.await()
         val allPurchases = purchasesDeferred.await()
 
@@ -122,9 +127,11 @@ class GetAnalyticsDashboardUseCase(
 
         // 5. Gerar métricas de KM mesclando com meses vazios
         val months = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-        val kmMetrics = months.map { monthName ->
-            kmMetricsResult.find { it.month.contains(monthName, ignoreCase = true) } 
-                ?: KmMetric(monthName, 0.0)
+        // O banco devolve o mês em inglês (Jan, Feb...); exibimos em português.
+        val monthsPt = listOf("Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")
+        val kmMetrics = months.mapIndexed { index, monthName ->
+            val total = kmMetricsResult.find { it.month.contains(monthName, ignoreCase = true) }?.totalKm ?: 0.0
+            KmMetric(monthsPt[index], total)
         }
 
         DashboardData(
