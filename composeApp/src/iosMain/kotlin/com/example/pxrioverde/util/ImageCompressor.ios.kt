@@ -11,6 +11,7 @@ import platform.Foundation.NSFileManager
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSUUID
 import platform.Foundation.create
+import platform.Foundation.writeToFile
 import platform.UIKit.UIImage
 
 actual class ImageCompressor {

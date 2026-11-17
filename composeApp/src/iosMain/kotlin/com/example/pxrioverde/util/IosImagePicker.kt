@@ -22,8 +22,7 @@ import platform.UIKit.UIImageJPEGRepresentation
 import platform.UIKit.UIImagePickerController
 import platform.UIKit.UIImagePickerControllerDelegateProtocol
 import platform.UIKit.UIImagePickerControllerOriginalImage
-import platform.UIKit.UIImagePickerControllerSourceTypeCamera
-import platform.UIKit.UIImagePickerControllerSourceTypePhotoLibrary
+import platform.UIKit.UIImagePickerControllerSourceType
 import platform.UIKit.UINavigationControllerDelegateProtocol
 import platform.UIKit.UIViewController
 import platform.darwin.NSObject
@@ -47,7 +46,7 @@ object IosImagePicker {
     private var activeDelegate: PickerDelegate? = null
 
     fun isCameraAvailable(): Boolean =
-        UIImagePickerController.isSourceTypeAvailable(UIImagePickerControllerSourceTypeCamera)
+        UIImagePickerController.isSourceTypeAvailable(UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera)
 
     /**
      * Abre a camera ou a galeria. [onResult] recebe os bytes JPEG, ou null se a pessoa
@@ -70,9 +69,9 @@ object IosImagePicker {
 
         val picker = UIImagePickerController()
         picker.sourceType = if (useCamera) {
-            UIImagePickerControllerSourceTypeCamera
+            UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera
         } else {
-            UIImagePickerControllerSourceTypePhotoLibrary
+            UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypePhotoLibrary
         }
         picker.allowsEditing = false
 
@@ -112,8 +111,6 @@ object IosImagePicker {
         sheet.addAction(UIAlertAction.actionWithTitle("Cancelar", UIAlertActionStyleCancel) { _ ->
             onResult(null)
         })
-        // No iPad o menu precisa de um ponto de origem; no iPhone isto e ignorado.
-        sheet.popoverPresentationController?.sourceView = top.view
         top.presentViewController(sheet, animated = true, completion = null)
     }
 
