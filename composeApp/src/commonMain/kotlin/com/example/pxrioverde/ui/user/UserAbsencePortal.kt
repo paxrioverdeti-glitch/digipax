@@ -59,6 +59,9 @@ fun UserAbsencePortal(
 
     LaunchedEffect(userId) {
         viewModel.loadUserAbsences(userId)
+        // Recarrega os supervisores a cada abertura: quem foi cadastrado depois
+        // que o app abriu passa a aparecer sem precisar fechar o app.
+        viewModel.loadApprovers()
     }
 
     if (showCreateForm) {

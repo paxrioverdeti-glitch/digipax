@@ -168,6 +168,31 @@ class AuthService {
     fun isUserLoggedIn(): Boolean = supabase.auth.currentSessionOrNull() != null
 
     suspend fun getApprovers(): List<User> {
+        // 1) Caminho principal: função segura no banco (list_approvers), que funciona
+        //    para qualquer usuário logado, mesmo sem permissão de ler a tabela profiles.
+        try {
+            val rows = supabase.postgrest.rpc("list_approvers").decodeList<ApproverRow>()
+            if (rows.isNotEmpty()) {
+                return rows
+                    .filter { row ->
+                        val name = (row.name ?: "").lowercase()
+                        !name.contains("luiza") && !row.email.lowercase().contains("luiza")
+                    }
+                    .map { row ->
+                        User(
+                            id = row.id,
+                            name = row.name,
+                            email = row.email,
+                            role = try { UserRole.valueOf(row.role.uppercase()) } catch (e: Exception) { UserRole.CLIENT }
+                        )
+                    }
+            }
+        } catch (e: Exception) {
+            // Função ainda não criada no banco: segue pela leitura antiga.
+            println("list_approvers indisponível, usando leitura direta: ${e.message}")
+        }
+
+        // 2) Caminho antigo (leitura direta da tabela profiles).
         return try {
             val response = supabase.from("profiles")
                 .select {
@@ -254,6 +279,14 @@ data class AllowedEmailDto(
     val name: String? = null,
     val role: String = "CLIENT",
     val used: Boolean = false
+)
+
+@kotlinx.serialization.Serializable
+data class ApproverRow(
+    val id: String,
+    val name: String? = null,
+    val email: String = "",
+    val role: String = "CLIENT"
 )
 
 @kotlinx.serialization.Serializable
