@@ -41,7 +41,7 @@ import org.koin.compose.viewmodel.koinViewModel
 /**
  * Aba Administrativa dedicada ao Relatório de Avarias e Danos da Frota.
  * Exibe vistorias com `houve_novo_dano == true`, dados do motorista, veículo,
- * resumo do Gemini, badges de gravidade e galeria comparativa de fotos.
+ * resumo da análise automática, badges de gravidade e galeria comparativa de fotos.
  */
 @Composable
 fun VehicleDamageReportsScreen(
@@ -195,7 +195,7 @@ fun VehicleDamageReportsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Uma por vez, para não passar do limite do Gemini. Mantenha o app aberto.",
+                            "Uma vistoria por vez. Mantenha o app aberto durante o processamento.",
                             fontSize = 11.sp,
                             color = Color(0xFF475569)
                         )
@@ -379,7 +379,7 @@ fun VehicleDamageReportsScreen(
 
 /**
  * Card individual representando um relatório de avaria de veículo com
- * dados do motorista, dados do carro, resumo do Gemini, badges e galeria de fotos.
+ * dados do motorista, dados do carro, resumo da análise automática, badges e galeria de fotos.
  */
 @Composable
 private fun VehicleDamageReportCard(
@@ -539,11 +539,11 @@ private fun VehicleDamageReportCard(
                 }
             }
 
-            // RESUMO DA IA (GEMINI)
+            // RESUMO DA ANÁLISE AUTOMÁTICA
             if (item.resumoGeral.isNotBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Resumo da Análise (IA Gemini):",
+                    text = "Resumo da Análise (IA):",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF64748B)

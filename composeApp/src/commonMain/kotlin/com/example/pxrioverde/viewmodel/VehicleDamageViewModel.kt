@@ -93,10 +93,7 @@ class VehicleDamageViewModel(
         }
     }
 
-    /**
-     * Analisa todas as vistorias sem análise, UMA POR VEZ (para não estourar o limite
-     * por minuto do Gemini). O gestor pode parar no meio.
-     */
+    /** Analisa todas as vistorias sem análise, uma por vez. O gestor pode parar no meio. */
     fun analyzeAllPending() {
         if (batchJob?.isActive == true) return
         val pending = _reports.value.filter { it.isAnalysisPending }.map { it.tripId }
@@ -105,24 +102,17 @@ class VehicleDamageViewModel(
             var failures = 0
             var firstError: String? = null
             try {
-                var quotaReached = false
                 for ((index, tripId) in pending.withIndex()) {
                     _batchProgress.value = index to pending.size
                     _analyzingTripIds.value = _analyzingTripIds.value + tripId
                     repository.requestServerAnalysis(tripId, waitForResult = true).onFailure { e ->
                         failures++
                         if (firstError == null) firstError = e.message
-                        if (e.message?.contains("limite diário") == true) quotaReached = true
                     }
                     _analyzingTripIds.value = _analyzingTripIds.value - tripId
                     refreshQuietly()
-                    // Limite diário do Gemini acabou: parar, as próximas falhariam igual.
-                    if (quotaReached) break
                 }
-                if (quotaReached) {
-                    _reviewError.value = "O limite diário gratuito do Gemini acabou. As vistorias que faltaram continuam " +
-                        "pendentes: rode \"Analisar todas\" de novo amanhã."
-                } else if (failures > 0) {
+                if (failures > 0) {
                     _reviewError.value = "$failures de ${pending.size} vistorias não puderam ser analisadas. " +
                         "Motivo: ${firstError ?: "desconhecido"}"
                 }
