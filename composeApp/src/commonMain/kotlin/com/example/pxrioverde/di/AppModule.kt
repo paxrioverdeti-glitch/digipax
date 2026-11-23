@@ -9,6 +9,7 @@ import com.example.pxrioverde.repository.AbsenceRepository
 import com.example.pxrioverde.repository.PurchaseRepository
 import com.example.pxrioverde.repository.UserPreferencesRepository
 import com.example.pxrioverde.repository.VehicleInspectionRepository
+import com.example.pxrioverde.repository.BancoHorasRepository
 import com.example.pxrioverde.service.AuthService
 import com.example.pxrioverde.service.GeminiInspectionService
 import com.example.pxrioverde.service.NotificationService
@@ -49,6 +50,7 @@ val appModule = module {
     single { AbsenceRepository(get()) }
     single { PurchaseRepository(get()) }
     single { VehicleInspectionRepository(get(), get()) }
+    single { BancoHorasRepository(get()) }
 
     // UseCases
     singleOf(::GetAnalyticsDashboardUseCase)
@@ -66,4 +68,5 @@ val appModule = module {
     viewModelOf(::PurchaseViewModel)
     viewModelOf(::FeedViewModel)
     viewModelOf(::VehicleDamageViewModel)
+    viewModelOf(::BancoHorasViewModel)
 }

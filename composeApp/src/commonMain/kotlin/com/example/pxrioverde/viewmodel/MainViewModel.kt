@@ -15,6 +15,7 @@ sealed class AppScreen {
     object PurchaseRequest : AppScreen()
     object PurchaseHistory : AppScreen()
     object Mural : AppScreen()
+    object BancoHoras : AppScreen()
 }
 
 class MainViewModel(

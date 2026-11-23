@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import com.example.pxrioverde.util.AdaptiveUtils
 import com.example.pxrioverde.util.WindowSizeClass
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -115,8 +116,8 @@ fun SupportBottomNavigation(
                 },
                 colors = NavigationBarItemDefaults.colors(
                     // Cor do ícone e texto quando NÃO está selecionado (cinza discreto)
-                    unselectedIconColor = Color.LightGray,
-                    unselectedTextColor = Color.LightGray,
+                    unselectedIconColor = Color(0xFF55605A),
+                    unselectedTextColor = Color(0xFF4A554F),
 
                     // Cor do ícone e texto quando ESTÁ selecionado (seu verde principal)
                     selectedIconColor = Color(0xFF1B4332),
@@ -170,6 +171,7 @@ fun UserSupportDashboardScreen(
     onNavigateToCarBooking: () -> Unit = {},
     onNavigateToComunicadoRH: () -> Unit = {},
     onNavigateToMural: () -> Unit = {},
+    onNavigateToBancoHoras: () -> Unit = {},
     onNavigateToPurchaseRequest: () -> Unit = {},
     onNavigateToPurchaseHistory: () -> Unit = {},
     onNavigateToTickets: () -> Unit = {},
@@ -217,6 +219,7 @@ fun UserSupportDashboardScreen(
                             onNavigateToTicketCreate = { onNavigateToTicketCreate(null) },
                             onNavigateToCarBooking = onNavigateToCarBooking,
                             onNavigateToComunicadoRH = onNavigateToComunicadoRH,
+                            onNavigateToBancoHoras = onNavigateToBancoHoras,
                             hasPendingResponse = hasPendingResponse,
                             isDesktop = true
                         )
@@ -254,6 +257,7 @@ fun UserSupportDashboardScreen(
                     onNavigateToTicketCreate = { onNavigateToTicketCreate(null) },
                     onNavigateToCarBooking = onNavigateToCarBooking,
                     onNavigateToComunicadoRH = onNavigateToComunicadoRH,
+                    onNavigateToBancoHoras = onNavigateToBancoHoras,
                     hasPendingResponse = hasPendingResponse
                 )
 
@@ -453,8 +457,9 @@ fun SupportHeader(
             )
             Text(
                 text = "Portal Integrado Pax Rio Verde.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.8f)
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.95f)
             )
         }
 
@@ -481,8 +486,8 @@ fun MuralManagementCard(
             text = "COMUNICADOS & IDEIAS",
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Black,
-            color = Color(0xFF1B4332).copy(alpha = 0.6f),
-            letterSpacing = 2.sp
+            color = Color(0xFF1B4332),
+            letterSpacing = 1.sp
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -516,8 +521,9 @@ fun MuralManagementCard(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             "Fique por dentro de comunicados, eventos e compartilhe suas ideias com a equipe.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.85f)
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.95f)
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -567,6 +573,7 @@ fun NewTicketActionCard(
     onNavigateToTicketCreate: () -> Unit = {},
     onNavigateToCarBooking: () -> Unit = {},
     onNavigateToComunicadoRH: () -> Unit = {},
+    onNavigateToBancoHoras: () -> Unit = {},
     hasPendingResponse: Boolean = false,
     isDesktop: Boolean = false
 ) {
@@ -616,28 +623,61 @@ fun NewTicketActionCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Atalho do banco de horas (todo colaborador logado)
+            HomeActionRow(
+                icon = CorporateIcons.Clock,
+                text = "Meu banco de horas",
+                onClick = onNavigateToBancoHoras
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             // Link elegante para RH
-            TextButton(
-                onClick = onNavigateToComunicadoRH,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Icon(
-                    imageVector = CorporateIcons.Exit,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = if (hasPendingResponse) "Verificar Resposta / Aprovação" else "Vai se ausentar? Clique aqui",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 16.sp,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
+            HomeActionRow(
+                icon = CorporateIcons.Exit,
+                text = if (hasPendingResponse) "Verificar Resposta / Aprovação" else "Vai se ausentar? Clique aqui",
+                onClick = onNavigateToComunicadoRH
+            )
         }
+    }
+}
+
+// Linha de ação do card verde: fundo tingido + contorno sutil + chevron, toque >= 48dp
+@Composable
+private fun HomeActionRow(icon: ImageVector, text: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.12f))
+            .border(1.dp, Color.White.copy(alpha = 0.35f), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = text,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            fontSize = 16.sp,
+            color = Color.White,
+            fontWeight = FontWeight.ExtraBold
+        )
+        Icon(
+            imageVector = CorporateIcons.ChevronRight,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -719,7 +759,7 @@ fun QuickCategoryButtonDesktop(icon: ImageVector, label: String, onClick: () -> 
 fun QuickCategoryButton(icon: BottomNavIcon, label: String, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }
+        modifier = Modifier.clip(RoundedCornerShape(16.dp)).clickable { onClick() }
     ) {
         Surface(
             modifier = Modifier.size(64.dp),

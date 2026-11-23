@@ -98,6 +98,7 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import com.example.pxrioverde.ui.components.NotificationBell
 import com.example.pxrioverde.ui.user.ApprovalCenterScreen
 import com.example.pxrioverde.ui.user.UserAbsencePortal
+import com.example.pxrioverde.ui.user.BancoHorasScreen
 import com.example.pxrioverde.ui.user.UserNotificationsScreen
 import com.example.pxrioverde.viewmodel.AbsenceViewModel
 
@@ -220,6 +221,7 @@ fun AuthenticatedAppContent(
     val tripViewModel: TripViewModel = koinViewModel()
     val analyticsViewModel: AnalyticsViewModel = koinViewModel()
     val profileViewModel: ProfileViewModel = koinViewModel()
+    val bancoHorasViewModel: BancoHorasViewModel = koinViewModel()
     val absenceViewModel: AbsenceViewModel = koinViewModel()
     val purchaseViewModel: PurchaseViewModel = koinViewModel()
     val feedViewModel: FeedViewModel = koinViewModel()
@@ -301,6 +303,10 @@ fun AuthenticatedAppContent(
                 viewModel = purchaseViewModel,
                 onBack = { mainViewModel.goBack() }
             )
+            is AppScreen.BancoHoras -> BancoHorasScreen(
+                viewModel = bancoHorasViewModel,
+                onBack = { mainViewModel.goBack() }
+            )
             is AppScreen.Mural -> MuralScreen(
                 user = currentUser,
                 viewModel = feedViewModel,
@@ -327,6 +333,7 @@ fun AuthenticatedAppContent(
                 onNavigateToCarBooking = { mainViewModel.navigateTo(AppScreen.CarBooking) },
                 onNavigateToComunicadoRH = { mainViewModel.navigateTo(AppScreen.ComunicadoRH) },
                 onNavigateToMural = { mainViewModel.navigateTo(AppScreen.Mural) },
+                onNavigateToBancoHoras = { mainViewModel.navigateTo(AppScreen.BancoHoras) },
                 onNavigateToCheckOut = { booking ->
                     mainViewModel.navigateTo(AppScreen.VehicleCheckOut(booking))
                 },
@@ -910,6 +917,7 @@ fun MainContainer(
     onNavigateToCarBooking: () -> Unit = {},
     onNavigateToComunicadoRH: () -> Unit = {},
     onNavigateToMural: () -> Unit = {},
+    onNavigateToBancoHoras: () -> Unit = {},
     onNavigateToPurchaseRequest: () -> Unit = {},
     onNavigateToPurchaseHistory: () -> Unit = {},
     onNavigateToCheckOut: (Booking) -> Unit = {},
@@ -1016,6 +1024,7 @@ fun MainContainer(
                             onNavigateToCarBooking = onNavigateToCarBooking,
                             onNavigateToComunicadoRH = onNavigateToComunicadoRH,
                             onNavigateToMural = onNavigateToMural,
+                            onNavigateToBancoHoras = onNavigateToBancoHoras,
                             onNavigateToPurchaseRequest = onNavigateToPurchaseRequest,
                             onNavigateToPurchaseHistory = onNavigateToPurchaseHistory,
                             onNavigateToTickets = { onTabChange(1) },
@@ -1064,6 +1073,7 @@ fun MainContainer(
                         onNavigateToCarBooking = onNavigateToCarBooking,
                         onNavigateToComunicadoRH = onNavigateToComunicadoRH,
                         onNavigateToMural = onNavigateToMural,
+                        onNavigateToBancoHoras = onNavigateToBancoHoras,
                         onNavigateToPurchaseRequest = onNavigateToPurchaseRequest,
                         onNavigateToPurchaseHistory = onNavigateToPurchaseHistory,
                         onNavigateToTickets = { onTabChange(1) },
@@ -1097,6 +1107,7 @@ fun UserContentArea(
     onNavigateToCarBooking: () -> Unit,
     onNavigateToComunicadoRH: () -> Unit,
     onNavigateToMural: () -> Unit = {},
+    onNavigateToBancoHoras: () -> Unit = {},
     onNavigateToPurchaseRequest: () -> Unit,
     onNavigateToPurchaseHistory: () -> Unit,
     onNavigateToTickets: () -> Unit,
@@ -1129,6 +1140,7 @@ fun UserContentArea(
                 onNavigateToCarBooking = onNavigateToCarBooking,
                 onNavigateToComunicadoRH = onNavigateToComunicadoRH,
                 onNavigateToMural = onNavigateToMural,
+                onNavigateToBancoHoras = onNavigateToBancoHoras,
                 onNavigateToPurchaseRequest = onNavigateToPurchaseRequest,
                 onNavigateToPurchaseHistory = onNavigateToPurchaseHistory,
                 onNavigateToTickets = onNavigateToTickets,
@@ -1194,6 +1206,7 @@ fun UserHome(
     onNavigateToCarBooking: () -> Unit = {},
     onNavigateToComunicadoRH: () -> Unit = {},
     onNavigateToMural: () -> Unit = {},
+    onNavigateToBancoHoras: () -> Unit = {},
     onNavigateToPurchaseRequest: () -> Unit = {},
     onNavigateToPurchaseHistory: () -> Unit = {},
     onNavigateToTickets: () -> Unit = {},
@@ -1228,6 +1241,7 @@ fun UserHome(
         onNavigateToCarBooking = onNavigateToCarBooking,
         onNavigateToComunicadoRH = onNavigateToComunicadoRH,
         onNavigateToMural = onNavigateToMural,
+        onNavigateToBancoHoras = onNavigateToBancoHoras,
         onNavigateToPurchaseRequest = onNavigateToPurchaseRequest,
         onNavigateToPurchaseHistory = onNavigateToPurchaseHistory,
         onNavigateToTickets = onNavigateToTickets,
