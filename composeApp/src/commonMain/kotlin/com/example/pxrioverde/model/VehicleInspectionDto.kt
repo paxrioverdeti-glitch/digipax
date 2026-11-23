@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * DTO que representa o resultado da análise de vistoria veicular retornado pela API do Gemini.
+ * DTO que representa o resultado da análise automática de vistoria veicular.
  */
 @Serializable
 data class VehicleInspectionResultDto(

@@ -75,7 +75,7 @@ private data class ProfileSummaryDto(
 
 /**
  * Repository de Vistorias de Veículos.
- * O aplicativo do motorista submete as fotos e o gestor da frota visualiza a análise gerada pelo Gemini.
+ * O aplicativo do motorista submete as fotos e o gestor da frota visualiza a análise automática.
  */
 class VehicleInspectionRepository(
     private val geminiService: GeminiInspectionService,
@@ -168,8 +168,8 @@ class VehicleInspectionRepository(
 
     /**
      * Pede ao servidor (Edge Function "analyze-inspection") para analisar a vistoria.
-     * O servidor baixa as fotos, chama o Gemini e grava o relatório. O app só envia o id
-     * da viagem, então a chave do Gemini não fica no celular e a análise continua
+     * O servidor baixa as fotos, chama o serviço configurado e grava o relatório. O app só envia o id
+     * da viagem, então as credenciais do serviço não ficam no celular e a análise continua
      * mesmo que o motorista feche o app.
      */
     suspend fun requestServerAnalysis(tripId: String, waitForResult: Boolean = false): Result<Unit> {
